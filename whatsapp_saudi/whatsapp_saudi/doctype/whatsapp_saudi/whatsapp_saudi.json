@@ -1,0 +1,72 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2023-11-01 08:20:14.999546",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "file_url",
+  "message_url",
+  "token",
+  "instance_id",
+  "from_number",
+  "to_number"
+ ],
+ "fields": [
+  {
+   "fieldname": "file_url",
+   "fieldtype": "Data",
+   "label": "File url"
+  },
+  {
+   "fieldname": "from_number",
+   "fieldtype": "Phone",
+   "label": "From Number"
+  },
+  {
+   "fieldname": "to_number",
+   "fieldtype": "Phone",
+   "label": "To Number "
+  },
+  {
+   "fieldname": "message_url",
+   "fieldtype": "Data",
+   "label": "Message url "
+  },
+  {
+   "fieldname": "token",
+   "fieldtype": "Data",
+   "label": "Token"
+  },
+  {
+   "fieldname": "instance_id",
+   "fieldtype": "Data",
+   "label": "Instance id "
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2023-11-01 09:07:41.700843",
+ "modified_by": "Administrator",
+ "module": "Whatsapp Saudi",
+ "name": "Whatsapp Saudi",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

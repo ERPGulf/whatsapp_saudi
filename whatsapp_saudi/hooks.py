@@ -219,3 +219,11 @@ app_license = "mit"
 # auth_hooks = [
 #	"whatsapp_saudi.auth.validate"
 # ]
+
+doctype_js = {
+	"Notification" : "public/js/whatsapp_notification.js"
+}
+
+override_doctype_class = {
+	"Notification": "whatsapp_saudi.overrides.whtatsapp_notification.ERPGulfNotification"
+ }
