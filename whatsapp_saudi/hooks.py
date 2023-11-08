@@ -219,7 +219,10 @@ app_license = "mit"
 # auth_hooks = [
 #	"whatsapp_saudi.auth.validate"
 # ]
-
+fixtures=[{ "dt":"Property Setter" ,"filters":[[
+                "name", "in",[
+                    "Notification-channel-options",] ]] 
+           }]
 doctype_js = {
 	"Notification" : "public/js/whatsapp_notification.js"
 }

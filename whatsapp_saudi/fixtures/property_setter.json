@@ -1,0 +1,19 @@
+[
+ {
+  "amenty": null,
+  "default_value": null,
+  "doc_type": "Notification",
+  "docstatus": 0,
+  "doctype": "Property Setter",
+  "doctype_or_field": "DocField",
+  "field_name": "channel",
+  "is_system_generated": 0,
+  "modified": "2023-11-01 13:09:20.404142",
+  "module": "Whatsapp Saudi",
+  "name": "Notification-channel-options",
+  "property": "options",
+  "property_type": null,
+  "row_name": null,
+  "value": "Email\nSlack\nSystem Notification\nSMS\nwhatsapp message\nWhatsapp Saudi"
+ }
+]
