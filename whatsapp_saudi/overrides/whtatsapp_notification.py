@@ -22,7 +22,6 @@ class ERPGulfNotification(Notification):
  # fetch pdf from the create_pdf function and send to whatsapp 
     @frappe.whitelist()
     def send_whatsapp_with_pdf(self,doc,context):
-        frappe.msgprint("entered")
         memory_url=self.create_pdf(doc)
         url =frappe.get_doc('Whatsapp Saudi').get('file_url') 
         instance =frappe.get_doc('Whatsapp Saudi').get('instance_id') 
@@ -62,6 +61,7 @@ class ERPGulfNotification(Notification):
                           "to_number":doc.custom_mobile_phone,
                           "time": current_time
                           }).insert()
+                    frappe.msgprint("sent")
                 else:
                   frappe.log( "success: false,reason: API access prohibited or incorrect instanceid or token" , message=frappe.get_traceback())  
             else:
@@ -102,6 +102,7 @@ class ERPGulfNotification(Notification):
                         "to_number":doc.custom_mobile_phone,
                         "time": current_time
                     }).insert()
+                  frappe.msgprint("sent")
                 else:
                   frappe.log( "success: false,reason: API access prohibited or incorrect instanceid or token" , message=frappe.get_traceback())
             else:
@@ -123,7 +124,6 @@ class ERPGulfNotification(Notification):
        
         # if attach_print and print format both are enable then it send pdf with message
               if self.attach_print and  self.print_format:
-                  frappe.msgprint("send pdf")
                   frappe.enqueue(
                   self.send_whatsapp_with_pdf,
                   queue="short",
@@ -134,7 +134,6 @@ class ERPGulfNotification(Notification):
                  
                # otherwise send only message   
               else:
-                  frappe.msgprint("enter in send msg")
                   frappe.enqueue(
                   self.send_whatsapp_without_pdf,
                   queue="short",

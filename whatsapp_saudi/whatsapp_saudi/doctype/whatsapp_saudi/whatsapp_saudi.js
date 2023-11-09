@@ -20,10 +20,9 @@ frappe.ui.form.on("Whatsapp Saudi", {
               callback: function(response) {
                   if (response.message) {  
                       frappe.msgprint(response.message);
-                     
                   }
               }
           });
-      }, __("send"));
+      }, __("Send a test message"));
   }
 });

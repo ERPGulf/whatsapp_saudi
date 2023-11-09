@@ -58,12 +58,16 @@ def send_message(url,instance,token,phone):
                     }).insert()
                 frappe.msgprint("sent")
             else:
+                frappe.msgprint("sending message failed")
                 frappe.log( "success: false,reason: API access prohibited or incorrect instanceid or token" , message=frappe.get_traceback())
-           
+                
       else:
+          
            frappe.log("status code  is not 200", message=frappe.get_traceback()) 
+           
       return response
     except Exception as e:
+        frappe.msgprint("sending message failed")
         frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())  
  
 
