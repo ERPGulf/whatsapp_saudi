@@ -42,7 +42,6 @@ class ERPGulfNotification(Notification):
         }
 
         files = []
-    
         headers = {
           'content-type': 'application/x-www-form-urlencoded',
           'Cookie': 'PHPSESSID=e9603d8bdbea9f5bf851e36831b8ba16'
@@ -55,6 +54,7 @@ class ERPGulfNotification(Notification):
                 response_dict = json.loads(response_json)
                 if response_dict.get("sent") and response_dict.get("id"):
                     current_time =now()# for geting current time
+                     # If the message is sent successfully a success message response will be recorded in the WhatsApp Saudi success log.
                     frappe.get_doc({
                           "doctype": "whatsapp saudi success log",
                           "title": "Message successfully sent ",
@@ -63,9 +63,9 @@ class ERPGulfNotification(Notification):
                           "time": current_time
                           }).insert()
                 else:
-                    frappe.log( "success: false,reason: API access prohibited or incorrect instanceid or token" , message=frappe.get_traceback())  
+                  frappe.log( "success: false,reason: API access prohibited or incorrect instanceid or token" , message=frappe.get_traceback())  
             else:
-                frappe.log("status code  is not 200", message=frappe.get_traceback()) 
+              frappe.log("status code  is not 200", message=frappe.get_traceback()) 
             return response
         except Exception as e:
             frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())  
@@ -94,6 +94,7 @@ class ERPGulfNotification(Notification):
                 response_dict = json.loads(response_json)
                 if response_dict.get("sent") and response_dict.get("id"):
                   current_time =now()# for geting current time
+                # If the message is sent successfully a success message response will be recorded in the WhatsApp Saudi success log."
                   frappe.get_doc({
                         "doctype": "whatsapp saudi success log",
                         "title": "Message successfully sent",
@@ -103,15 +104,13 @@ class ERPGulfNotification(Notification):
                     }).insert()
                 else:
                   frappe.log( "success: false,reason: API access prohibited or incorrect instanceid or token" , message=frappe.get_traceback())
-            
             else:
                 frappe.log("status code  is not 200", message=frappe.get_traceback()) 
-           
             return response
         except Exception as e:
           frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())  
  
-# directly pass the function 
+
   # call the  send whatsapp with pdf function and send whatsapp without pdf function and it work with the help of condition 
     def send(self, doc):
         context = {"doc":doc, "alert": self, "comments": None}
@@ -122,8 +121,8 @@ class ERPGulfNotification(Notification):
         try:
             if self.channel == "Whatsapp Saudi":
        
-        # if attach_print and print format both are working then it send pdf with message
-              if self.attach_print:
+        # if attach_print and print format both are enable then it send pdf with message
+              if self.attach_print and  self.print_format:
                   frappe.msgprint("send pdf")
                   frappe.enqueue(
                   self.send_whatsapp_with_pdf,

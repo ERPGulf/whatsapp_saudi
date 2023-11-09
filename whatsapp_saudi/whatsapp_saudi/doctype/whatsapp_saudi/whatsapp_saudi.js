@@ -12,8 +12,10 @@ frappe.ui.form.on("Whatsapp Saudi", {
           frm.call({
               method: "whatsapp_saudi.whatsapp_saudi.doctype.whatsapp_saudi.whatsapp_saudi.send_message",
               args: {
-                
-
+                url:frm.doc.file_url,
+                instance:frm.doc.instance_id,
+                token:frm.doc.token,
+                phone:frm.doc.to_number
               },
               callback: function(response) {
                   if (response.message) {  

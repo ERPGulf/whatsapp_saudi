@@ -219,6 +219,10 @@ app_license = "mit"
 # auth_hooks = [
 #	"whatsapp_saudi.auth.validate"
 # ]
+fixtures=[
+    {"dt":"Whatsapp Saudi"}
+    ]
+
 fixtures=[{ "dt":"Property Setter" ,"filters":[[
                 "name", "in",[
                     "Notification-channel-options",] ]] 

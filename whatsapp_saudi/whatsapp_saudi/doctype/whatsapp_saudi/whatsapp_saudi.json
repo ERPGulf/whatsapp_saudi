@@ -22,13 +22,13 @@
   },
   {
    "fieldname": "from_number",
-   "fieldtype": "Phone",
-   "label": "From Number"
+   "fieldtype": "Data",
+   "label": "From Number(for testing)"
   },
   {
    "fieldname": "to_number",
-   "fieldtype": "Phone",
-   "label": "To Number "
+   "fieldtype": "Data",
+   "label": "To Number(for testing)"
   },
   {
    "fieldname": "message_url",
@@ -49,7 +49,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2023-11-01 09:07:41.700843",
+ "modified": "2023-11-09 09:03:18.261858",
  "modified_by": "Administrator",
  "module": "Whatsapp Saudi",
  "name": "Whatsapp Saudi",

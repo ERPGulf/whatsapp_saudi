@@ -14,61 +14,54 @@ import time
 class WhatsappSaudi(Document):
 	pass
 @frappe.whitelist()
+# creating pdf
 def create_pdf():
-    frappe.msgprint("pdff")
-    file = frappe.get_print("Customer","Tata motors","tata motors", as_pdf=True)
+    file = frappe.get_print("Global Defaults","default_company",as_pdf=True)
     pdf_bytes = io.BytesIO(file)
     pdf_base64 = base64.b64encode(pdf_bytes.getvalue()).decode()
     in_memory_url = f"data:application/pdf;base64,{pdf_base64}"
-    
-  
     return  in_memory_url
     
-    # return in_memory_url
 
 @frappe.whitelist()
-def send_message():
+def send_message(url,instance,token,phone):
     memory_url=create_pdf()
-    frappe.msgprint("return back")
-    url = "https://api.4whats.net/sendFile"
-
+    pdf_url=url
     payload = {
-        'instanceid': '133866',
-        'token': 'f95b7d1e-b2f8-4b3c-aec4-ff5b93f0595a',
+        'instanceid':instance,
+        'token':token,
         'body':memory_url,
-        'filename': '',
-        'caption': 'null',
-        'phone': '+919961343245'
+        'filename': 'Company',
+        'caption':"this is a test message",
+        'phone':phone
     }
     
     files = []
-    
     headers = {
         'content-type': 'application/x-www-form-urlencoded',
         'Cookie': 'PHPSESSID=e9603d8bdbea9f5bf851e36831b8ba16'
     }
 
     try:
-      response = requests.post(url, headers=headers, data=payload, files=files)
+      response = requests.post(pdf_url, headers=headers, data=payload, files=files)
       response_json=response.text
       if response.status_code == 200:
             response_dict = json.loads(response_json)
             if response_dict.get("sent") and response_dict.get("id"):
                 current_time =now()# for geting current time
+                # If the message is sent successfully, a success message response will be recorded in the WhatsApp Saudi success log."
                 frappe.get_doc({
                         "doctype": "whatsapp saudi success log",
                         "title": "sucess",
                         "message": "testing",
                         "time": current_time
                     }).insert()
+                frappe.msgprint("sent")
             else:
                 frappe.log( "success: false,reason: API access prohibited or incorrect instanceid or token" , message=frappe.get_traceback())
-            
-            #   frappe.log_error(title='Failed to send notification', message=frappe.get_traceback()) 
-      else:
-            
-           frappe.log("status code  is not 200", message=frappe.get_traceback()) 
            
+      else:
+           frappe.log("status code  is not 200", message=frappe.get_traceback()) 
       return response
     except Exception as e:
         frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())  
