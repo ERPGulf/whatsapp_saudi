@@ -4,11 +4,11 @@
   "doctype": "Whatsapp Saudi",
   "file_url": "https://api.4whats.net/sendFile",
   "from_number": null,
-  "instance_id": "133866",
+  "instance_id": "",
   "message_url": "https://api.4whats.net/sendMessage",
-  "modified": "2023-11-09 09:00:19.497657",
+  "modified": "2023-11-14 15:32:39.158629",
   "name": "Whatsapp Saudi",
   "to_number": "",
-  "token": "f95b7d1e-b2f8-4b3c-aec4-ff5b93f0595a"
+  "token": ""
  }
 ]

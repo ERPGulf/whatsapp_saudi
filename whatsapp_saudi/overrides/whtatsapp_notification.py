@@ -93,14 +93,14 @@ class ERPGulfNotification(Notification):
             if response.status_code == 200:
                 response_dict = json.loads(response_json)
                 if response_dict.get("sent") and response_dict.get("id"):
-                  current_time =now()# for geting current time
+                  current_time =now()
                 # If the message is sent successfully a success message response will be recorded in the WhatsApp Saudi success log."
                   frappe.get_doc({
                         "doctype": "whatsapp saudi success log",
                         "title": "Message successfully sent",
                         "message":msg1,
                         "to_number":doc.custom_mobile_phone,
-                        "time": current_time
+                        "time":current_time
                     }).insert()
                   frappe.msgprint("sent")
                 else:

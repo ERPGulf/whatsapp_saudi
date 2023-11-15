@@ -46,6 +46,9 @@ def send_message(url,instance,token,phone):
       response = requests.post(pdf_url, headers=headers, data=payload, files=files)
       response_json=response.text
       if response.status_code == 200:
+            if not response_json: 
+                frappe.msgprint("Empty response. Enter correct URL.")
+                return
             response_dict = json.loads(response_json)
             if response_dict.get("sent") and response_dict.get("id"):
                 current_time =now()# for geting current time
@@ -58,16 +61,18 @@ def send_message(url,instance,token,phone):
                     }).insert()
                 frappe.msgprint("sent")
             else:
-                frappe.msgprint("sending message failed")
+                response1=str(response_dict)
+                response2=json.dumps(response1)
+                frappe.msgprint(response2)
                 frappe.log( "success: false,reason: API access prohibited or incorrect instanceid or token" , message=frappe.get_traceback())
                 
       else:
-          
-           frappe.log("status code  is not 200", message=frappe.get_traceback()) 
-           
+            response1=str(response_dict)
+            response2=json.dumps(response1)
+            frappe.msgprint(response2)
+            frappe.log("status code  is not 200", message=frappe.get_traceback()) 
       return response
     except Exception as e:
-        frappe.msgprint("sending message failed")
         frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())  
  
 
