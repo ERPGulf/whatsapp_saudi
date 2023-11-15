@@ -58,7 +58,7 @@ class ERPGulfNotification(Notification):
                           "doctype": "whatsapp saudi success log",
                           "title": "Message successfully sent ",
                           "message": msg1,
-                          "to_number":doc.custom_mobile_phone,
+                          "to_number":number,
                           "time": current_time
                           }).insert()
                     frappe.msgprint("sent")
@@ -99,7 +99,7 @@ class ERPGulfNotification(Notification):
                         "doctype": "whatsapp saudi success log",
                         "title": "Message successfully sent",
                         "message":msg1,
-                        "to_number":doc.custom_mobile_phone,
+                        "to_number":number,
                         "time":current_time
                     }).insert()
                   frappe.msgprint("sent")

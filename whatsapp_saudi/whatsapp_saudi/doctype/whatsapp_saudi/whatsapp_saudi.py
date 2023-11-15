@@ -60,12 +60,15 @@ def send_message(url,instance,token,phone):
                         "time": current_time
                     }).insert()
                 frappe.msgprint("sent")
+            elif response_dict.get("success") is False and response_dict.get("reason"):
+                frappe.msgprint("API access prohibited or incorrect instanceid or token")
+                frappe.log( "success: false,reason: API access prohibited or incorrect instanceid or token" , message=frappe.get_traceback())
             else:
                 response1=str(response_dict)
                 response2=json.dumps(response1)
                 frappe.msgprint(response2)
-                frappe.log( "success: false,reason: API access prohibited or incorrect instanceid or token" , message=frappe.get_traceback())
-                
+                frappe.msgprint("invalid phone number.Enter phone number with country code")
+                frappe.log_error( title="invalid number" , message=frappe.get_traceback())
       else:
             response1=str(response_dict)
             response2=json.dumps(response1)
