@@ -22,22 +22,25 @@ class ERPGulfNotification(Notification):
  # fetch pdf from the create_pdf function and send to whatsapp 
     @frappe.whitelist()
     def send_whatsapp_with_pdf(self,doc,context):
+        frappe.msgprint("pdf")
         memory_url=self.create_pdf(doc)
+        recipients = self.get_receiver_list(doc,context)
+        for receipt in recipients:
+          number = receipt
+          phoneNumber =self.get_receiver_phone_number(number)
         url =frappe.get_doc('Whatsapp Saudi').get('file_url') 
         instance =frappe.get_doc('Whatsapp Saudi').get('instance_id') 
         msg1 = frappe.render_template(self.message, context)
         token =frappe.get_doc('Whatsapp Saudi').get('token')
-        recipients = self.get_receiver_list(doc,context)
-        for receipt in recipients:
-          number = receipt
-       
+        
+    
         payload = {
           'instanceid':instance,
           'token': token,
           'body':memory_url,
           'filename':doc.name,
           'caption': msg1,
-          'phone':number
+          'phone':phoneNumber
         }
 
         files = []
@@ -58,7 +61,7 @@ class ERPGulfNotification(Notification):
                           "doctype": "whatsapp saudi success log",
                           "title": "Message successfully sent ",
                           "message": msg1,
-                          "to_number":number,
+                          "to_number":phoneNumber,
                           "time": current_time
                           }).insert()
                     frappe.msgprint("sent")
@@ -81,10 +84,12 @@ class ERPGulfNotification(Notification):
         recipients = self.get_receiver_list(doc,context)
         for receipt in recipients:
             number = receipt
+            phoneNumber =self.get_receiver_phone_number(number)
+    
         querystring = {
             "instanceid":instance,
             "token": token,
-            "phone": number,
+            "phone":phoneNumber,
             "body":msg1
           }
         try:
@@ -124,6 +129,7 @@ class ERPGulfNotification(Notification):
        
         # if attach_print and print format both are enable then it send pdf with message
               if self.attach_print and  self.print_format:
+                  frappe.msgprint("pdf eneterd")
                   frappe.enqueue(
                   self.send_whatsapp_with_pdf,
                   queue="short",
@@ -166,3 +172,19 @@ class ERPGulfNotification(Notification):
           
 
  
+    def get_receiver_phone_number(self,number):
+        phoneNumber = number.replace("+","").replace("-","")
+        if phoneNumber.startswith("+") == True:
+            phoneNumber = phoneNumber[1:]
+        elif phoneNumber.startswith("00") == True:
+            phoneNumber = phoneNumber[2:]
+        elif phoneNumber.startswith("0") == True:
+            if len(phoneNumber) == 10:
+                phoneNumber = "966" + phoneNumber[1:]
+        else:
+            if len(phoneNumber) < 10: 
+                phoneNumber ="966" + phoneNumber
+        if phoneNumber.startswith("0") == True:
+            phoneNumber = phoneNumber[1:]
+        
+        return phoneNumber  

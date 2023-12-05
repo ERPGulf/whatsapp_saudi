@@ -35,16 +35,16 @@ frappe.ui.form.on("Whatsapp Saudi", {
 
 function areCredentialsValid(frm) {
     const expectedFormat = /^https:\/\/api\.4whats\.net\/sendFile$/;
-    const isValidToNumber = /^\+\d{5,}$/.test(frm.doc.to_number);
-    if(!isValidToNumber) {
-        frappe.msgprint(__("Please enter a valid number with country code."));
-    }
-    return (
+
+    
+      return (
         frm.doc.file_url &&
         expectedFormat.test(frm.doc.file_url) &&
         frm.doc.instance_id &&
         frm.doc.token &&
-        frm.doc.to_number&&
-        isValidToNumber
+        frm.doc.to_number
+        
+        
+       
     );
 }

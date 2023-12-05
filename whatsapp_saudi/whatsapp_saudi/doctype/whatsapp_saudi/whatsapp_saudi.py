@@ -24,8 +24,11 @@ def create_pdf():
     
 
 @frappe.whitelist()
-def send_message(url,instance,token,phone):
+def send_message(phone,url,instance,token):
     memory_url=create_pdf()
+    
+    phoneNumber =get_receiver_phone_number(number=phone)
+    
     pdf_url=url
     payload = {
         'instanceid':instance,
@@ -33,7 +36,7 @@ def send_message(url,instance,token,phone):
         'body':memory_url,
         'filename': 'Company',
         'caption':"this is a test message",
-        'phone':phone
+        'phone':phoneNumber
     }
     
     files = []
@@ -49,6 +52,7 @@ def send_message(url,instance,token,phone):
             if not response_json: 
                 frappe.msgprint("Empty response. Enter correct URL.")
                 return
+           
             response_dict = json.loads(response_json)
             if response_dict.get("sent") and response_dict.get("id"):
                 current_time =now()# for geting current time
@@ -60,6 +64,7 @@ def send_message(url,instance,token,phone):
                         "time": current_time
                     }).insert()
                 frappe.msgprint("sent")
+                
             elif response_dict.get("success") is False and response_dict.get("reason"):
                 frappe.msgprint("API access prohibited or incorrect instanceid or token")
                 frappe.log( "success: false,reason: API access prohibited or incorrect instanceid or token" , message=frappe.get_traceback())
@@ -79,3 +84,19 @@ def send_message(url,instance,token,phone):
         frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())  
  
 
+def get_receiver_phone_number(number):
+        phoneNumber = number.replace("+","").replace("-","")
+        if phoneNumber.startswith("+") == True:
+            phoneNumber = phoneNumber[1:]
+        elif phoneNumber.startswith("00") == True:
+            phoneNumber = phoneNumber[2:]
+        elif phoneNumber.startswith("0") == True:
+            if len(phoneNumber) == 10:
+                phoneNumber = "966" + phoneNumber[1:]
+        else:
+            if len(phoneNumber) < 10: 
+                phoneNumber ="966" + phoneNumber
+        if phoneNumber.startswith("0") == True:
+            phoneNumber = phoneNumber[1:]
+        
+        return phoneNumber   
