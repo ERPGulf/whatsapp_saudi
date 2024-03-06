@@ -196,7 +196,7 @@ import requests
 import json
 import io
 import base64
-
+# from your_module_path import create_pdf1, get_receiver_phone_number  # replace 'your_module_path' with the actual path
 import time
 @frappe.whitelist(allow_guest=True) 
 def create_pdf1(doctype,docname,print_format):
@@ -206,53 +206,76 @@ def create_pdf1(doctype,docname,print_format):
         in_memory_url = f"data:application/pdf;base64,{pdf_base64}"
         return in_memory_url          
 @frappe.whitelist(allow_guest=True) 
-def send_whatsapp_with_pdf1(phone_number,message,docname,doctype,print_format):
-        # return"hello"
-        memory_url=create_pdf1(doctype,docname,print_format)
-       
-        # recipients = self.get_receiver_list(doc,context)
-        url =frappe.get_doc('Whatsapp Saudi').get('file_url') 
-        instance =frappe.get_doc('Whatsapp Saudi').get('instance_id') 
-        # msg1 = frappe.render_template(self.message, context)
-        token =frappe.get_doc('Whatsapp Saudi').get('token')
-        
-        
-    
-        payload = {
-          'instanceid':instance,
-          'token': token,
-          'body':memory_url,
-          'filename':docname,
-          'caption':message,
-          'phone':phone_number
-        }
 
-        files = []
-        headers = {
-          'content-type': 'application/x-www-form-urlencoded',
-          'Cookie': 'PHPSESSID=e9603d8bdbea9f5bf851e36831b8ba16'
-        }
 
-        try:
-            response = requests.post(url, headers=headers, data=payload, files=files)
-            response_json=response.text
-            if response.status_code == 200:
-                response_dict = json.loads(response_json)
-                if response_dict.get("sent") and response_dict.get("id"):
-                    current_time =now()
-                    frappe.get_doc({
-                          "doctype": "whatsapp saudi success log",
-                          "title": "Message successfully sent ",
-                          "message":message,
-                          "to_number":phone_number,
-                          "time": current_time
-                          }).insert(ignore_permission=True)
-                   
-                else:
-                  frappe.log( "success: false,reason: API access prohibited or incorrect instanceid or token" , message=frappe.get_traceback())  
+def send_whatsapp_with_pdf1(phone_number, message, docname, doctype, print_format):
+    memory_url = create_pdf1(doctype, docname, print_format)
+
+    # Get configuration values from 'Whatsapp Saudi' doctype
+    whatsapp_config = frappe.get_doc('Whatsapp Saudi')
+    url = whatsapp_config.get('file_url')
+    instance = whatsapp_config.get('instance_id')
+    token = whatsapp_config.get('token')
+
+    # Get receiver's phone number
+    phonenumber = get_receiver_phone_number1(phone_number)
+   
+
+    payload = {
+        'instanceid': instance,
+        'token': token,
+        'body': memory_url,
+        'filename': docname,
+        'caption': message,
+        'phone': phonenumber
+    }
+
+    files = []
+    headers = {
+        'content-type': 'application/x-www-form-urlencoded',
+        'Cookie': 'PHPSESSID=e9603d8bdbea9f5bf851e36831b8ba16'  # Replace with the actual cookie value
+    }
+
+    try:
+        response = requests.post(url, headers=headers, data=payload, files=files)
+        
+        response_json = response.text
+        if response.status_code == 200:
+            response_dict = json.loads(response_json)
+            if response_dict.get("sent") and response_dict.get("id"):
+                current_time = now()
+                frappe.get_doc({
+                    "doctype": "whatsapp saudi success log",
+                    "title": "Message successfully sent",
+                    "message": message,
+                    "to_number": phonenumber,
+                    "time": current_time
+                }).insert(ignore_permissions=True)
+                response_dict["success"] = True
+                response_dict["message"] = "Message successfully sent"
             else:
-              frappe.log("status code  is not 200", message=frappe.get_traceback()) 
-            return response
-        except Exception as e:
-            frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())  
- 
+                frappe.log("success: false, reason: API access prohibited or incorrect instanceid or token",
+                           message=frappe.get_traceback())
+        else:
+            frappe.log("Status code is not 200", message=frappe.get_traceback())
+        # return response.text
+       
+    except Exception as e:
+        frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())
+    return response_dict  
+def get_receiver_phone_number1(phone_number):
+        phoneNumber = phone_number.replace("+","").replace("-","").replace(" ","")
+        if phoneNumber.startswith("+") == True:
+            phoneNumber = phoneNumber[1:]
+        elif phoneNumber.startswith("00") == True:
+            phoneNumber = phoneNumber[2:]
+        elif phoneNumber.startswith("0") == True:
+            if len(phoneNumber) == 10:
+                phoneNumber = "966" + phoneNumber[1:]
+        else:
+            if len(phoneNumber) < 10: 
+                phoneNumber ="966" + phoneNumber
+        if phoneNumber.startswith("0") == True:
+            phoneNumber = phoneNumber[1:]
+        
+        return phoneNumber  
