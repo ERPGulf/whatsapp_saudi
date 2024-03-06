@@ -187,3 +187,72 @@ class ERPGulfNotification(Notification):
             phoneNumber = phoneNumber[1:]
         
         return phoneNumber  
+      
+      
+      
+      
+      
+import requests
+import json
+import io
+import base64
+
+import time
+@frappe.whitelist(allow_guest=True) 
+def create_pdf1(doctype,docname,print_format):
+        file = frappe.get_print(doctype, docname,print_format, as_pdf=True)
+        pdf_bytes = io.BytesIO(file)
+        pdf_base64 = base64.b64encode(pdf_bytes.getvalue()).decode()
+        in_memory_url = f"data:application/pdf;base64,{pdf_base64}"
+        return in_memory_url          
+@frappe.whitelist(allow_guest=True) 
+def send_whatsapp_with_pdf1(phone_number,message,docname,doctype,print_format):
+        # return"hello"
+        memory_url=create_pdf1(doctype,docname,print_format)
+       
+        # recipients = self.get_receiver_list(doc,context)
+        url =frappe.get_doc('Whatsapp Saudi').get('file_url') 
+        instance =frappe.get_doc('Whatsapp Saudi').get('instance_id') 
+        # msg1 = frappe.render_template(self.message, context)
+        token =frappe.get_doc('Whatsapp Saudi').get('token')
+        
+        
+    
+        payload = {
+          'instanceid':instance,
+          'token': token,
+          'body':memory_url,
+          'filename':docname,
+          'caption':message,
+          'phone':phone_number
+        }
+
+        files = []
+        headers = {
+          'content-type': 'application/x-www-form-urlencoded',
+          'Cookie': 'PHPSESSID=e9603d8bdbea9f5bf851e36831b8ba16'
+        }
+
+        try:
+            response = requests.post(url, headers=headers, data=payload, files=files)
+            response_json=response.text
+            if response.status_code == 200:
+                response_dict = json.loads(response_json)
+                if response_dict.get("sent") and response_dict.get("id"):
+                    current_time =now()
+                    frappe.get_doc({
+                          "doctype": "whatsapp saudi success log",
+                          "title": "Message successfully sent ",
+                          "message":message,
+                          "to_number":phone_number,
+                          "time": current_time
+                          }).insert(ignore_permission=True)
+                   
+                else:
+                  frappe.log( "success: false,reason: API access prohibited or incorrect instanceid or token" , message=frappe.get_traceback())  
+            else:
+              frappe.log("status code  is not 200", message=frappe.get_traceback()) 
+            return response
+        except Exception as e:
+            frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())  
+ 
