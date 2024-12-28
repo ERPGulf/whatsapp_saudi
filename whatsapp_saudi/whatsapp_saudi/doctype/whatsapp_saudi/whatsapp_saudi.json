@@ -16,6 +16,7 @@
  ],
  "fields": [
   {
+   "default": "https://api.4whats.net/sendFile",
    "fieldname": "file_url",
    "fieldtype": "Data",
    "label": "File url"
@@ -31,6 +32,7 @@
    "label": "To Number(for testing)"
   },
   {
+   "default": "https://api.4whats.net/sendMessage",
    "fieldname": "message_url",
    "fieldtype": "Data",
    "label": "Message url "
@@ -49,7 +51,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2023-11-09 09:03:18.261858",
+ "modified": "2024-12-28 22:44:39.172217",
  "modified_by": "Administrator",
  "module": "Whatsapp Saudi",
  "name": "Whatsapp Saudi",
