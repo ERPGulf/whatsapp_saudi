@@ -13,6 +13,8 @@ import json
 import time
 class WhatsappSaudi(Document):
 	pass
+
+#api for create pdf
 @frappe.whitelist()
 # creating pdf
 def create_pdf():
@@ -22,7 +24,7 @@ def create_pdf():
     in_memory_url = f"data:application/pdf;base64,{pdf_base64}"
     return  in_memory_url
 
-
+#api for send message
 @frappe.whitelist()
 def send_message(phone,url,instance,token):
     memory_url=create_pdf()
@@ -83,7 +85,7 @@ def send_message(phone,url,instance,token):
     except Exception as e:
         frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())
 
-
+#api for get receiver phone number
 
 def get_receiver_phone_number(number):
         phoneNumber = number.replace("+","").replace("-","")
@@ -101,3 +103,32 @@ def get_receiver_phone_number(number):
             phoneNumber = phoneNumber[1:]
 
         return phoneNumber
+
+
+#api for receive message and store in database
+
+@frappe.whitelist(allow_guest=True)
+def receive_whatsapp_message():
+    data = frappe.request.get_data(as_text=True)
+    json_data = json.loads(data)
+    try:
+        instance_id = json_data.get("instanceId", "Unknown Instance")
+        frappe.log_error(title="Success", message=json.dumps(json_data, indent=2))
+        doc = frappe.get_doc({
+            "doctype": "Whatsapp responses",
+            "title": "Message Received",
+            "response":json.dumps(json_data, indent=2),
+            "instance_id": instance_id,
+        })
+        doc.insert(ignore_permissions=True)
+        return {
+            "status": "success",
+            "message": "Message received",
+            "docname": doc.name
+        }
+
+    except Exception as e:
+        frappe.log_error(title="failed", message=json.dumps(json_data, indent=2))
+        return {"status": "error", "message": str(e)}
+
+
