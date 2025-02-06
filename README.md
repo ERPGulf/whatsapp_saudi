@@ -71,7 +71,7 @@ https://your-erpnext-instance.com/api/method/whatsapp_saudi.receive_whatsapp_mes
 - This webhook ensures that all incoming messages are stored in the WhatsApp Response Doctype in ERPNext.
 <br>
 
-![WhatsApp Saudi Configuration](assets/response.png)
+![WhatsApp Saudi Configuration](assets/response1.png)
 
 ## 🚀 Features (Version 2.0)
 ### ✅ New Additions:
