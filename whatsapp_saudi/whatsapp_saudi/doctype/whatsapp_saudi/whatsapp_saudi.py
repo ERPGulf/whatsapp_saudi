@@ -132,3 +132,23 @@ def receive_whatsapp_message():
         return {"status": "error", "message": str(e)}
 
 
+
+@frappe.whitelist(allow_guest=True)
+def response():
+
+
+    API_URL = "https://api.4whats.net/messages"  # Replace with the actual API endpoint
+    INSTANCE_ID = "133866"  # Replace with your instance ID
+    TOKEN = "f95b7d1e-b2f8-4b3c-aec4-ff5b93f0595a"  # Replace with your authentication token
+
+    headers = {
+        "Authorization": f"Bearer {TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    response = requests.get(f"{API_URL}?instance_id={INSTANCE_ID}", headers=headers)
+    messages = response.json()
+
+    return(messages)
+
+
