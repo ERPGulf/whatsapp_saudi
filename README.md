@@ -87,4 +87,3 @@ https://your-erpnext-instance.com/api/method/whatsapp_saudi.receive_whatsapp_mes
 
 # 👤 Author
 Aysha Sithara.
-Maintained by ERPGulf Team.
