@@ -13,8 +13,11 @@ import json
 import time
 class WhatsappSaudi(Document):
 	pass
+<<<<<<< HEAD
 
 #api for create pdf
+=======
+>>>>>>> 754e2fd (Fixtures updated)
 @frappe.whitelist()
 # creating pdf
 def create_pdf():
@@ -23,6 +26,7 @@ def create_pdf():
     pdf_base64 = base64.b64encode(pdf_bytes.getvalue()).decode()
     in_memory_url = f"data:application/pdf;base64,{pdf_base64}"
     return  in_memory_url
+<<<<<<< HEAD
 
 #api for send message
 @frappe.whitelist()
@@ -31,6 +35,16 @@ def send_message(phone,url,instance,token):
 
     phoneNumber =get_receiver_phone_number(number=phone)
 
+=======
+    
+
+@frappe.whitelist()
+def send_message(phone,url,instance,token):
+    memory_url=create_pdf()
+    
+    phoneNumber =get_receiver_phone_number(number=phone)
+    
+>>>>>>> 754e2fd (Fixtures updated)
     pdf_url=url
     payload = {
         'instanceid':instance,
@@ -40,7 +54,11 @@ def send_message(phone,url,instance,token):
         'caption':"this is a test message",
         'phone':phoneNumber
     }
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 754e2fd (Fixtures updated)
     files = []
     headers = {
         'content-type': 'application/x-www-form-urlencoded',
@@ -51,10 +69,17 @@ def send_message(phone,url,instance,token):
       response = requests.post(pdf_url, headers=headers, data=payload, files=files)
       response_json=response.text
       if response.status_code == 200:
+<<<<<<< HEAD
             if not response_json:
                 frappe.msgprint("Empty response. Enter correct URL.")
                 return
 
+=======
+            if not response_json: 
+                frappe.msgprint("Empty response. Enter correct URL.")
+                return
+           
+>>>>>>> 754e2fd (Fixtures updated)
             response_dict = json.loads(response_json)
             if response_dict.get("sent") and response_dict.get("id"):
                 current_time =now()# for geting current time
@@ -66,7 +91,11 @@ def send_message(phone,url,instance,token):
                         "time": current_time
                     }).insert()
                 frappe.msgprint("sent")
+<<<<<<< HEAD
 
+=======
+                
+>>>>>>> 754e2fd (Fixtures updated)
             elif response_dict.get("success") is False and response_dict.get("reason"):
                 frappe.msgprint("API access prohibited or incorrect instanceid or token")
                 frappe.log( "success: false,reason: API access prohibited or incorrect instanceid or token" , message=frappe.get_traceback())
@@ -80,12 +109,20 @@ def send_message(phone,url,instance,token):
             response1=str(response_dict)
             response2=json.dumps(response1)
             frappe.msgprint(response2)
+<<<<<<< HEAD
             frappe.log("status code  is not 200", message=frappe.get_traceback())
       return response
     except Exception as e:
         frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())
 
 #api for get receiver phone number
+=======
+            frappe.log("status code  is not 200", message=frappe.get_traceback()) 
+      return response
+    except Exception as e:
+        frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())  
+ 
+>>>>>>> 754e2fd (Fixtures updated)
 
 def get_receiver_phone_number(number):
         phoneNumber = number.replace("+","").replace("-","")
@@ -97,6 +134,7 @@ def get_receiver_phone_number(number):
             if len(phoneNumber) == 10:
                 phoneNumber = "966" + phoneNumber[1:]
         else:
+<<<<<<< HEAD
             if len(phoneNumber) < 10:
                 phoneNumber ="966" + phoneNumber
         if phoneNumber.startswith("0") == True:
@@ -134,3 +172,11 @@ def receive_whatsapp_message():
 
 
 
+=======
+            if len(phoneNumber) < 10: 
+                phoneNumber ="966" + phoneNumber
+        if phoneNumber.startswith("0") == True:
+            phoneNumber = phoneNumber[1:]
+        
+        return phoneNumber   
+>>>>>>> 754e2fd (Fixtures updated)
