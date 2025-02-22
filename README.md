@@ -2,7 +2,6 @@
 
 Integration with **Saudi.support WhatsApp** for **ERPNext**.
 
-###### License
 
 mit# whatsapp_saudi<br>
 This app integrates ERPNext with  4Whats.net ,  Global   Whatsapp provider. The provider site can be accessed here (https://4whats.net/)
