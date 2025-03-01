@@ -261,7 +261,7 @@ def embed_file_in_pdf(invoice_name, print_format, letterhead, language):
 
 
 @frappe.whitelist(allow_guest=True)
-def send_whatsapp_with_pdf_a3(phone_number, message, invoice_name, print_format=None, letterhead=None, language="en"):
+def send_whatsapp_with_pdf_a3( message, invoice_name, print_format=None, letterhead=None, language="en"):
     """
     Generate a PDF/A-3 file and send it via WhatsApp.
     """
@@ -285,9 +285,10 @@ def send_whatsapp_with_pdf_a3(phone_number, message, invoice_name, print_format=
         url = whatsapp_config.get("file_url")
         instance = whatsapp_config.get("instance_id")
         token = whatsapp_config.get("token")
+        phone=whatsapp_config.get('to_number')
 
         # Format phone number
-        phonenumber = get_receiver_phone_number(phone_number)
+        phonenumber = get_receiver_phone_number(phone)
 
         # Prepare the payload for WhatsApp API
         payload = {

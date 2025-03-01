@@ -229,12 +229,16 @@ fixtures=[{ "dt":"Property Setter" ,"filters":[[
            }]
 doctype_js = {
     "Notification": "public/js/whatsapp_notification.js",
-    "Sales Invoice": "public/js/salesinvoice.js"
+    "Sales Invoice": [
+        "public/js/salesinvoice.js",
+        "public/js/whatsapp_send.js",
+        "public/js/send_pdf_a3.js"
+    ]
 }
+
 
 
 
 override_doctype_class = {
 	"Notification": "whatsapp_saudi.overrides.whtatsapp_notification.ERPGulfNotification"
  }
-   # "Sales Invoice": "public/js/whatsapp_send.js",
