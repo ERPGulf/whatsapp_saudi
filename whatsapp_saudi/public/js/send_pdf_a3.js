@@ -2,7 +2,7 @@ frappe.ui.form.on('Sales Invoice', {
     refresh: function(frm) {
         frm.add_custom_button('Send_pdf_A3', function() {
             frappe.call({
-                method: 'whatsapp_saudi.whatsapp_saudi.pdf_a3.send_whatsapp_with_pdf_a3',
+                method: 'whatsapp_saudi.overrides.pdf_a3.send_whatsapp_with_pdf_a3',
                 args: {
                     message: "SALES INVOICE",
                     invoice_name: frm.doc.name,
