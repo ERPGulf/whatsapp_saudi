@@ -17,7 +17,7 @@ class WhatsappSaudi(Document):
 #api for create pdf
 @frappe.whitelist()
 # creating pdf
-def create_pdf():
+def create_pdf(allow_guest=True):
     file = frappe.get_print("Global Defaults","default_company",as_pdf=True)
     pdf_bytes = io.BytesIO(file)
     pdf_base64 = base64.b64encode(pdf_bytes.getvalue()).decode()
@@ -25,7 +25,7 @@ def create_pdf():
     return  in_memory_url
 
 #api for send message
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def send_message(phone,url,instance,token):
     memory_url=create_pdf()
 
