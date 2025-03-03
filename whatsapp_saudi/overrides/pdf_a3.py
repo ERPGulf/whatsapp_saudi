@@ -54,7 +54,7 @@ def generate_invoice_pdf(invoice, language, letterhead, print_format):
 
 def embed_file_in_pdf_1(input_pdf, xml_file, output_pdf):
     """embed the pdf file"""
-    app_path = frappe.get_app_path("zatca_erpgulf")
+    app_path = frappe.get_app_path("Whatsapp Saudi")
     icc_path = app_path + "/sRGB.icc"
 
     # frappe.throw(icc_path)
