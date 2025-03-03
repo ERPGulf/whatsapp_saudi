@@ -36,7 +36,7 @@
 frappe.ui.form.on("Sales Invoice", {
     refresh: function (frm) {
 
-        frm.add_custom_button(__('Send PDF-A3'), function () {
+        frm.add_custom_button(__('Send PDF-A3 through WhatApp'), function () {
 
             const dialog = new frappe.ui.Dialog({
                 title: __('Send PDF-A3 via WhatsApp'),
