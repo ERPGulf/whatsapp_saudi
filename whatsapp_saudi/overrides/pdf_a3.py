@@ -266,15 +266,15 @@ def send_whatsapp_with_pdf_a3( message, invoice_name, print_format=None, letterh
     Generate a PDF/A-3 file and send it via WhatsApp.
     """
     try:
-        # Generate the PDF/A-3 file
+
         invoice = frappe.get_doc("Sales Invoice", invoice_name)
 
-        pdf_a3_path = embed_file_in_pdf(invoice_name, print_format, letterhead, language)  # This generates PDF/A-3
+        pdf_a3_path = embed_file_in_pdf(invoice_name, print_format, letterhead, language)
 
         if not pdf_a3_path:
             frappe.throw("Failed to generate PDF/A-3 file!")
 
-        # Convert PDF to base64
+
         with open(pdf_a3_path.replace(get_url(), frappe.local.site), "rb") as pdf_file:
             pdf_base64 = base64.b64encode(pdf_file.read()).decode()
 
@@ -282,10 +282,17 @@ def send_whatsapp_with_pdf_a3( message, invoice_name, print_format=None, letterh
 
         # Get WhatsApp API configuration
         whatsapp_config = frappe.get_doc("Whatsapp Saudi")
+        sales_invoice=frappe.get_doc("Sales Invoice", invoice_name)
+        customer=sales_invoice.get("customer")
+        customer_doc=frappe.get_doc("Customer", customer)
+        # whatsapp_number=customer_doc.get("custom_whatsapp_number_")
+
         url = whatsapp_config.get("file_url")
         instance = whatsapp_config.get("instance_id")
         token = whatsapp_config.get("token")
-        phone=whatsapp_config.get('to_number')
+        phone=customer_doc.get("custom_whatsapp_number_")
+        if not phone:
+            frappe.throw("No WhatsApp number found for the customer")
 
         # Format phone number
         phonenumber = get_receiver_phone_number(phone)
@@ -329,7 +336,7 @@ def send_whatsapp_with_pdf_a3( message, invoice_name, print_format=None, letterh
             frappe.log_error("WhatsApp API request failed", frappe.get_traceback())
             return {"success": False, "message": "Error while sending message"}
 
-    except Exception as e:
+    except (requests.RequestException, json.JSONDecodeError, frappe.DoesNotExistError):
         frappe.log_error(title="Failed to send PDF/A-3 via WhatsApp", message=frappe.get_traceback())
         return {"success": False, "message": "An error occurred while sending the PDF/A-3 file"}
 

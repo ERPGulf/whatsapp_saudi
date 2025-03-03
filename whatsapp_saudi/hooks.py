@@ -227,6 +227,9 @@ fixtures=[{ "dt":"Property Setter" ,"filters":[[
                 "name", "in",[
                     "Notification-channel-options",] ]]
            }]
+fixtures=[{ "dt":"Custom Field" ,"filters":[[
+                "module", "in",["Whatsapp Saudi"] ]]
+           }]
 doctype_js = {
     "Notification": "public/js/whatsapp_notification.js",
     "Sales Invoice": [

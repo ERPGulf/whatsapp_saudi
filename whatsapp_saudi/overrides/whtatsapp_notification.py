@@ -212,12 +212,18 @@ def send_whatsapp_with_pdf1(message, docname, doctype, print_format):
     memory_url = create_pdf1(doctype, docname, print_format)
 
     # Get configuration values from 'Whatsapp Saudi' doctype
+    # Get configuration values from 'Whatsapp Saudi' doctype
     whatsapp_config = frappe.get_doc('Whatsapp Saudi')
+    sales_invoice=frappe.get_doc("Sales Invoice",docname)
+    customer=sales_invoice.get("customer")
+    customer_doc=frappe.get_doc("Customer", customer)
+
     url = whatsapp_config.get('file_url')
     instance = whatsapp_config.get('instance_id')
     token = whatsapp_config.get('token')
-    phone=whatsapp_config.get('to_number')
-
+    phone=customer_doc.get("custom_whatsapp_number_")
+    if not phone:
+        frappe.throw("No WhatsApp number found for the customer")
     # Get receiver's phone number
     phonenumber = get_receiver_phone_number1(phone)
 
