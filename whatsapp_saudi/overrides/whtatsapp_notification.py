@@ -209,12 +209,15 @@ def create_pdf1(doctype,docname,print_format):
 
 
 def send_whatsapp_with_pdf1(message, docname, doctype, print_format):
+
     memory_url = create_pdf1(doctype, docname, print_format)
 
     # Get configuration values from 'Whatsapp Saudi' doctype
     # Get configuration values from 'Whatsapp Saudi' doctype
     whatsapp_config = frappe.get_doc('Whatsapp Saudi')
     sales_invoice=frappe.get_doc("Sales Invoice",docname)
+    if sales_invoice.get("docstatus")==2:
+        frappe.throw("Document is cancelled")
     customer=sales_invoice.get("customer")
     customer_doc=frappe.get_doc("Customer", customer)
 

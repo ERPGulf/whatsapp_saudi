@@ -207,14 +207,14 @@ def embed_file_in_pdf(invoice_name, print_format, letterhead, language):
                 xml_file = os.path.join(frappe.local.site, "private", "files", file_name)
 
 
-            else:
-                file_name == reported_xml_file_name
+            elif file_name == reported_xml_file_name:
+
                 xml_file = os.path.join(frappe.local.site, "private", "files", file_name)
 
 
         # Ensure xml_file is set
         if not xml_file:
-            frappe.throw(f"No XML file found for the invoice {invoice_name}!")
+            frappe.throw(f"No XML file found for the invoice {invoice_name}. Please ensure the XML file is attached.")
 
 
 
@@ -283,6 +283,8 @@ def send_whatsapp_with_pdf_a3( message, invoice_name, print_format=None, letterh
         # Get WhatsApp API configuration
         whatsapp_config = frappe.get_doc("Whatsapp Saudi")
         sales_invoice=frappe.get_doc("Sales Invoice", invoice_name)
+        if sales_invoice.get("docstatus")==2:
+            frappe.throw("Document is cancelled")
         customer=sales_invoice.get("customer")
         customer_doc=frappe.get_doc("Customer", customer)
         # whatsapp_number=customer_doc.get("custom_whatsapp_number_")
