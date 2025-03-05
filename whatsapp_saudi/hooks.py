@@ -237,6 +237,7 @@ doctype_js = {
         "public/js/whatsapp_send.js",
         "public/js/send_pdf_a3.js"
     ]
+
 }
 
 

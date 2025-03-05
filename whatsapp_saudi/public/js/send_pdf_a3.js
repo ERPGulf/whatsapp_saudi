@@ -23,15 +23,14 @@
 //                 always: function() {
 //                     console.log('WhatsApp message request completed.');
 //                 },
-//                 btn: this, // Reference to the button
-//                 freeze: true, // Freezing the screen
-//                 freeze_message: "Sending WhatsApp message...", // Message to show
+//                 btn: this,
+//                 freeze: true,
+//                 freeze_message: "Sending WhatsApp message...",
 //                 async: true
 //             });
 //         });
 //     }
 // });
-
 
 frappe.ui.form.on("Sales Invoice", {
     refresh: function (frm) {
