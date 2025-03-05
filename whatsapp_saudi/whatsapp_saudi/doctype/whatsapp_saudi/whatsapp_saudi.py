@@ -69,7 +69,7 @@ def send_message(phone,url,instance,token):
 
             elif response_dict.get("success") is False and response_dict.get("reason"):
                 frappe.msgprint("API access prohibited or incorrect instanceid or token")
-                frappe.log( "success: false,reason: API access prohibited or incorrect instanceid or token" , message=frappe.get_traceback())
+                frappe.log_error("success: false,reason: API access prohibited or incorrect instanceid or token", message=frappe.get_traceback())
             else:
                 response1=str(response_dict)
                 response2=json.dumps(response1)
@@ -80,7 +80,7 @@ def send_message(phone,url,instance,token):
             response1=str(response_dict)
             response2=json.dumps(response1)
             frappe.msgprint(response2)
-            frappe.log("status code  is not 200", message=frappe.get_traceback())
+            frappe.log_error("status code is not 200", message=frappe.get_traceback())
       return response
     except Exception as e:
         frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())

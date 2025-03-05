@@ -4,19 +4,16 @@ import pikepdf
 import frappe
 import frappe.utils
 from frappe.utils.pdf import get_pdf
-from frappe.utils import get_site_path, get_url
-from frappe.model.document import Document
+from frappe.utils import get_url
 import requests
 import json
-import io
 import base64
 from frappe.utils import now
-from frappe.utils import get_url
-
+@frappe.whitelist(allow_guest=True)
 def generate_invoice_pdf(invoice, language, letterhead, print_format):
     """Function for generating invoice PDF based on the provided print format, letterhead, and language."""
 
-    # Set the language for the PDF generation
+
     invoice_name = invoice.name
 
     original_language = frappe.local.lang
@@ -159,17 +156,17 @@ def embed_file_in_pdf_1(input_pdf, xml_file, output_pdf):
             else:
                 pdf.Root.OutputIntents.append(output_intent_dict)
 
-        # Add PDF/A-3 compliance information
+
         pdf.Root["/GTS_PDFA1"] = pikepdf.Name("/PDF/A-3B")
         pdf.docinfo["/GTS_PDFA1"] = "PDF/A-3B"
         pdf.docinfo["/Title"] = "PDF/A-3 Example"
-        pdf.docinfo["/Author"] = "John Doe"  # Example author name
+        pdf.docinfo["/Author"] = "John Doe"
         pdf.docinfo["/Subject"] = "PDF/A-3 Example with Embedded XML"
         pdf.docinfo["/Creator"] = "Python pikepdf Library"
         pdf.docinfo["/Producer"] = "pikepdf"
         pdf.docinfo["/CreationDate"] = datetime.now().isoformat()
 
-        # Save the PDF as PDF/A-3
+
         pdf.save(output_pdf)
 
 
@@ -181,9 +178,9 @@ def embed_file_in_pdf(invoice_name, print_format, letterhead, language):
 
     try:
 
-        # frappe.throw(app_path)/opt/zatca/frappe-bench/apps/zatca_erpgulf/zatca_erpgulf
+
         if not language:
-            language = "en"  # Default language
+            language = "en"
         invoice_number = frappe.get_doc("Sales Invoice", invoice_name)
 
 
@@ -195,11 +192,6 @@ def embed_file_in_pdf(invoice_name, print_format, letterhead, language):
             "File", filters={"attached_to_name": invoice_name}, fields=["file_name"]
         )
 
-
-
-
-        # Find the XML file attachment
-        # Find the XML file attachment
         for attachment in attachments:
             file_name = attachment.get("file_name", None)
 
@@ -212,7 +204,7 @@ def embed_file_in_pdf(invoice_name, print_format, letterhead, language):
                 xml_file = os.path.join(frappe.local.site, "private", "files", file_name)
 
 
-        # Ensure xml_file is set
+
         if not xml_file:
             frappe.throw(f"No XML file found for the invoice {invoice_name}. Please ensure the XML file is attached.")
 
@@ -227,11 +219,11 @@ def embed_file_in_pdf(invoice_name, print_format, letterhead, language):
 
 
 
-        # final_pdf = frappe.local.site + "/private/files/" + invoice_name + "output.pdf"
+
         final_pdf = (
             frappe.local.site + "/private/files/PDF-A3 " + invoice_name + " output.pdf"
         )
-        # frappe.msgprint(f"Embedding XML into: {input_pdf}")
+
         with pikepdf.Pdf.open(input_pdf, allow_overwriting_input=True) as pdf:
             with open(xml_file, "rb") as xml_attachment:
                 pdf.attachments["invoice.xml"] = xml_attachment.read()
@@ -244,12 +236,11 @@ def embed_file_in_pdf(invoice_name, print_format, letterhead, language):
                     "file_url": "/private/files/PDF-A3 " + invoice_name + " output.pdf",
                     "attached_to_doctype": "Sales Invoice",
                     "attached_to_name": invoice_name,
-                    "is_private": 1,  # Make the file private
+                    "is_private": 1,
                 }
             )
         file_doc.insert(ignore_permissions=True)
-        # frappe.msgprint(f"XML successfully embedded into: {input_pdf}")
-        # frappe.throw(file_doc.file_url)
+
         return get_url(file_doc.file_url)
 
     except pikepdf.PdfError as e:
@@ -257,7 +248,7 @@ def embed_file_in_pdf(invoice_name, print_format, letterhead, language):
     except FileNotFoundError as e:
         frappe.msgprint(f"File not found: {e}")
     except IOError as e:
-        frappe.msgprint(f"I/O error: {e}")  # Step 1: Embed the XML into the input
+        frappe.msgprint(f"I/O error: {e}")
 
 
 @frappe.whitelist(allow_guest=True)
@@ -280,14 +271,14 @@ def send_whatsapp_with_pdf_a3( message, invoice_name, print_format=None, letterh
 
         in_memory_url = f"data:application/pdf;base64,{pdf_base64}"
 
-        # Get WhatsApp API configuration
+
         whatsapp_config = frappe.get_doc("Whatsapp Saudi")
         sales_invoice=frappe.get_doc("Sales Invoice", invoice_name)
         if sales_invoice.get("docstatus")==2:
             frappe.throw("Document is cancelled")
         customer=sales_invoice.get("customer")
         customer_doc=frappe.get_doc("Customer", customer)
-        # whatsapp_number=customer_doc.get("custom_whatsapp_number_")
+
 
         url = whatsapp_config.get("file_url")
         instance = whatsapp_config.get("instance_id")
@@ -296,14 +287,13 @@ def send_whatsapp_with_pdf_a3( message, invoice_name, print_format=None, letterh
         if not phone:
             frappe.throw("No WhatsApp number found for the customer")
 
-        # Format phone number
         phonenumber = get_receiver_phone_number(phone)
 
-        # Prepare the payload for WhatsApp API
+
         payload = {
             "instanceid": instance,
             "token": token,
-            "body": in_memory_url,  # PDF as Base64
+            "body": in_memory_url,
             "filename": f"{invoice_name}.pdf",
             "caption": message,
             "phone": phonenumber
@@ -313,14 +303,14 @@ def send_whatsapp_with_pdf_a3( message, invoice_name, print_format=None, letterh
             "content-type": "application/x-www-form-urlencoded"
         }
 
-        # Send the request
-        response = requests.post(url, headers=headers, data=payload)
+
+        response = requests.post(url, headers=headers, data=payload, timeout=10)
         response_json = response.text
 
         if response.status_code == 200:
             response_dict = json.loads(response_json)
             if response_dict.get("sent") and response_dict.get("id"):
-                # Log success in WhatsApp Saudi success log
+
                 current_time = now()
                 frappe.get_doc({
                     "doctype": "whatsapp saudi success log",

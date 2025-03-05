@@ -1,14 +1,12 @@
 import frappe
-from frappe import _
-from frappe.email.doctype.notification.notification import Notification, get_context, json
+from frappe.email.doctype.notification.notification import Notification
+import json
 from frappe.core.doctype.role.role import get_info_based_on_role, get_user_info
 import requests
-import json
+from werkzeug.wrappers import Response
 import io
 import base64
 from frappe.utils import now
-import time
-from frappe import enqueue
 # to send whatsapp message and document using ultramsg
 class ERPGulfNotification(Notification):
     def create_pdf(self,doc):
@@ -49,7 +47,7 @@ class ERPGulfNotification(Notification):
         }
 
         try:
-            response = requests.post(url, headers=headers, data=payload, files=files)
+            response = requests.post(url, headers=headers, data=payload, files=files, timeout=30)
             response_json=response.text
             if response.status_code == 200:
                 response_dict = json.loads(response_json)
@@ -69,7 +67,7 @@ class ERPGulfNotification(Notification):
             else:
               frappe.log_error("status code is not 200", frappe.get_traceback())
             return response
-        except Exception as e:
+        except requests.exceptions.RequestException:
             frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())
 
 
@@ -92,7 +90,7 @@ class ERPGulfNotification(Notification):
             "body":msg1
           }
         try:
-            response = requests.get(url, params=querystring)
+            response = requests.get(url, params=querystring, timeout=30)
             response_json=response.text
             if response.status_code == 200:
                 response_dict = json.loads(response_json)
@@ -112,8 +110,8 @@ class ERPGulfNotification(Notification):
             else:
                 frappe.log_error("status code  is not 200", frappe.get_traceback())
             return response
-        except Exception as e:
-          frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())
+        except requests.exceptions.RequestException:
+            frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())
 
 
   # call the  send whatsapp with pdf function and send whatsapp without pdf function and it work with the help of condition
@@ -146,8 +144,8 @@ class ERPGulfNotification(Notification):
           doc=doc,
           context=context
          )
-        except:
-            frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())
+        except (requests.exceptions.RequestException, frappe.ValidationError) as e:
+            frappe.log_error(title='Failed to send notification', message=f"{str(e)}\n{frappe.get_traceback()}")
             super(ERPGulfNotification, self).send(doc)
 
 
@@ -189,47 +187,66 @@ class ERPGulfNotification(Notification):
         return phoneNumber
 
 
-
-
-
-import requests
-import json
-import io
-import base64
-# from your_module_path import create_pdf1, get_receiver_phone_number  # replace 'your_module_path' with the actual path
-import time
 @frappe.whitelist(allow_guest=True)
-def create_pdf1(doctype,docname,print_format):
-        file = frappe.get_print(doctype, docname,print_format, as_pdf=True)
+def create_pdf1(doctype, docname, print_format):
+    try:
+        file = frappe.get_print(doctype, docname, print_format)
+        if isinstance(file, str) and "Uncaught Server Exception" in file:
+
+            return Response(
+            json.dumps(
+                {"error":"Uncaught Server Exception detected."}
+            ),
+            status=500,
+            mimetype="application/json",
+        )
+        file = frappe.get_print(doctype, docname, print_format,as_pdf=True)
         pdf_bytes = io.BytesIO(file)
         pdf_base64 = base64.b64encode(pdf_bytes.getvalue()).decode()
         in_memory_url = f"data:application/pdf;base64,{pdf_base64}"
         return in_memory_url
+
+    except frappe.PrintFormatError:
+        frappe.local.response["http_status_code"] = 500
+        return {"error": "An issue occurred while generating the PDF."}
+
+    except (frappe.DoesNotExistError, frappe.PermissionError, frappe.ValidationError) as e:
+        frappe.local.response["http_status_code"] = 500
+        frappe.log_error(f"Error in create_pdf1: {str(e)}", "Custom Function Error")
+        return {"error": "Something went wrong. Please try again later."}
+
+
+
 @frappe.whitelist(allow_guest=True)
-
-
 def send_whatsapp_with_pdf1(message, docname, doctype, print_format):
+    if not print_format or not frappe.db.exists('Print Format', print_format):
+        frappe.throw(f"Invalid print format: {print_format}. Please check the format name.")
+        return {"status": "error", "message": "Invalid print format."}
+    try:
+        memory_url = create_pdf1(doctype, docname, print_format)
+    except (frappe.DoesNotExistError, frappe.PermissionError, frappe.ValidationError, frappe.PrintFormatError) as e:
+        frappe.log_error(title="Error creating PDF", message=f"Error generating PDF for {docname} with format {print_format}. Error: {str(e)}")
+        return {"status": "error", "message": f"Error generating PDF for {docname} with format {print_format}. Please check the print format and try again."}
 
-    memory_url = create_pdf1(doctype, docname, print_format)
 
-    # Get configuration values from 'Whatsapp Saudi' doctype
-    # Get configuration values from 'Whatsapp Saudi' doctype
     whatsapp_config = frappe.get_doc('Whatsapp Saudi')
-    sales_invoice=frappe.get_doc("Sales Invoice",docname)
-    if sales_invoice.get("docstatus")==2:
+    sales_invoice = frappe.get_doc("Sales Invoice", docname)
+    if sales_invoice.get("docstatus") == 2:
         frappe.throw("Document is cancelled")
-    customer=sales_invoice.get("customer")
-    customer_doc=frappe.get_doc("Customer", customer)
+        return {"status": "error", "message": "Document is cancelled."}
+
+    customer = sales_invoice.get("customer")
+    customer_doc = frappe.get_doc("Customer", customer)
 
     url = whatsapp_config.get('file_url')
     instance = whatsapp_config.get('instance_id')
     token = whatsapp_config.get('token')
-    phone=customer_doc.get("custom_whatsapp_number_")
-    if not phone:
-        frappe.throw("No WhatsApp number found for the customer")
-    # Get receiver's phone number
-    phonenumber = get_receiver_phone_number1(phone)
+    phone = customer_doc.get("custom_whatsapp_number_")
 
+    if not phone:
+        return {"status": "error", "message": "No WhatsApp number found for the customer"}
+
+    phonenumber = get_receiver_phone_number1(phone)
 
     payload = {
         'instanceid': instance,
@@ -247,8 +264,7 @@ def send_whatsapp_with_pdf1(message, docname, doctype, print_format):
     }
 
     try:
-        response = requests.post(url, headers=headers, data=payload, files=files)
-
+        response = requests.post(url, headers=headers, data=payload, files=files, timeout=30)
         response_json = response.text
         if response.status_code == 200:
             response_dict = json.loads(response_json)
@@ -264,15 +280,17 @@ def send_whatsapp_with_pdf1(message, docname, doctype, print_format):
                 response_dict["success"] = True
                 response_dict["message"] = "Message successfully sent"
             else:
-                frappe.log_error("success: false, reason: API access prohibited or incorrect instanceid or token",
-                                 frappe.get_traceback())
+                frappe.log_error("success: false, reason: API access prohibited or incorrect instanceid or token", frappe.get_traceback())
+                return {"status": "error", "message": "Failed to send message, check API access."}
         else:
             frappe.log_error("Status code is not 200", frappe.get_traceback())
-        # return response.text
-
-    except Exception as e:
+            return {"status": "error", "message": "Failed to send message, non-200 response."}
+    except requests.exceptions.RequestException:
         frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())
-    return response_dict
+        return {"status": "error", "message": "Error in sending WhatsApp message."}
+
+    return {"status": "success", "message": "Message sent successfully."}
+
 def get_receiver_phone_number1(phone_number):
         phoneNumber = phone_number.replace("+","").replace("-","").replace(" ","")
         if phoneNumber.startswith("+") == True:
@@ -289,3 +307,5 @@ def get_receiver_phone_number1(phone_number):
             phoneNumber = phoneNumber[1:]
 
         return phoneNumber
+
+
