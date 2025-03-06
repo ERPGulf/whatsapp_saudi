@@ -1,7 +1,7 @@
 frappe.ui.form.on("Sales Invoice", {
     refresh: function (frm) {  // Use refresh to ensure the button is added every time the form is loaded
         frm.page.add_menu_item(__('Print PDF-A3'), function () {
-            // Create a dialog box with fields for Print Format, Letterhead, and Language
+
             const dialog = new frappe.ui.Dialog({
                 title: __('Generate PDF-A3'),
                 fields: [
@@ -14,7 +14,7 @@ frappe.ui.form.on("Sales Invoice", {
                         get_query: function () {
                             return {
                                 filters: {
-                                    doc_type: 'Sales Invoice' // Filters print formats related to Sales Invoice
+                                    doc_type: 'Sales Invoice'
                                 }
                             };
                         }
@@ -23,7 +23,7 @@ frappe.ui.form.on("Sales Invoice", {
                         fieldtype: 'Link',
                         fieldname: 'letterhead',
                         label: __('Letterhead'),
-                        options: 'Letter Head', // Options should be the 'Letter Head' doctype
+                        options: 'Letter Head',
                         reqd: 0
                     },
                     {
