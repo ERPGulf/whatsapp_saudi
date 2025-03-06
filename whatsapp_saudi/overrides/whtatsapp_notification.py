@@ -7,6 +7,7 @@ from werkzeug.wrappers import Response
 import io
 import base64
 from frappe.utils import now
+import os
 # to send whatsapp message and document using ultramsg
 class ERPGulfNotification(Notification):
     def create_pdf(self,doc):
@@ -219,9 +220,6 @@ def create_pdf1(doctype, docname, print_format):
 
 @frappe.whitelist(allow_guest=True)
 def send_whatsapp_with_pdf1(message, docname, doctype, print_format):
-    if not print_format or not frappe.db.exists('Print Format', print_format):
-        frappe.throw(f"Invalid print format: {print_format}. Please check the format name.")
-        return {"status": "error", "message": "Invalid print format."}
     try:
         memory_url = create_pdf1(doctype, docname, print_format)
     except (frappe.DoesNotExistError, frappe.PermissionError, frappe.ValidationError, frappe.PrintFormatError) as e:
@@ -229,6 +227,31 @@ def send_whatsapp_with_pdf1(message, docname, doctype, print_format):
         return {"status": "error", "message": f"Error generating PDF for {docname} with format {print_format}. Please check the print format and try again."}
 
 
+
+
+    xml_file = None
+    cleared_xml_file_name = "Cleared xml file " + docname + ".xml"
+
+    reported_xml_file_name = "Reported xml file " + docname + ".xml"
+    attachments = frappe.get_all(
+        "File", filters={"attached_to_name": docname}, fields=["file_name"]
+    )
+
+    for attachment in attachments:
+        file_name = attachment.get("file_name", None)
+
+        if file_name == cleared_xml_file_name:
+            xml_file = os.path.join(frappe.local.site, "private", "files", file_name)
+
+
+        elif file_name == reported_xml_file_name:
+
+            xml_file = os.path.join(frappe.local.site, "private", "files", file_name)
+
+
+
+    if not xml_file:
+        frappe.throw(f"No XML file found for the invoice {docname}. Please ensure the XML file is attached.")
     whatsapp_config = frappe.get_doc('Whatsapp Saudi')
     sales_invoice = frappe.get_doc("Sales Invoice", docname)
     if sales_invoice.get("docstatus") == 2:
