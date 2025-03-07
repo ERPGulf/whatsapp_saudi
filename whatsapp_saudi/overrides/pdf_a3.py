@@ -9,43 +9,34 @@ import requests
 import json
 import base64
 from frappe.utils import now
+
+sales_invoice_doctype="Sales Invoice"
+GTS_PDFA1 = "/GTS_PDFA1"
+
+
 @frappe.whitelist(allow_guest=True)
 def generate_invoice_pdf(invoice, language, letterhead, print_format):
     """Function for generating invoice PDF based on the provided print format, letterhead, and language."""
-
-
     invoice_name = invoice.name
 
     original_language = frappe.local.lang
     frappe.local.lang = language
-    # html= frappe.get_print("Sales Invoice", invoice_name, print_format,letterhead)
-    # Generate HTML content for the invoice
     html = frappe.get_print(
-        doctype="Sales Invoice",
-        name=invoice_name,  # Use the invoice's name directly
-        print_format=print_format,  # Use the selected print format  # Use letterhead only if specified
-        letterhead=letterhead,  # Specify the letterhead if provided
+        doctype=sales_invoice_doctype,
+        name=invoice_name,
+        print_format=print_format,
+        letterhead=letterhead,
     )
 
-
-
-
-    # Revert back to the original language
     frappe.local.lang = original_language
-
-    # Generate PDF content from the HTML
     pdf_content = get_pdf(html)
-
-    # Set the path for saving the generated PDF
-    site_path = frappe.local.site  # Get the site path
+    site_path = frappe.local.site
     file_name = f"{invoice_name}.pdf"
     file_path = os.path.join(site_path, "private", "files", file_name)
 
-    # Write the PDF content to the file
+
     with open(file_path, "wb") as pdf_file:
         pdf_file.write(pdf_content)
-
-    # Return the path of the generated PDF file
     return file_path
 
 
@@ -54,12 +45,11 @@ def embed_file_in_pdf_1(input_pdf, xml_file, output_pdf):
     app_path = frappe.get_app_path("Whatsapp Saudi")
     icc_path = app_path + "/sRGB.icc"
 
-    # frappe.throw(icc_path)
     with pikepdf.open(input_pdf, allow_overwriting_input=True) as pdf:
-        # Open metadata for editing
+
         with pdf.open_metadata() as metadata:
             metadata["pdf:Trapped"] = "False"
-            metadata["dc:creator"] = ["John Doe"]  # Example author name
+            metadata["dc:creator"] = ["John Doe"]
             metadata["dc:title"] = "PDF/A-3 Example"
             metadata["dc:description"] = (
                 "A sample PDF/A-3 compliant document with embedded XML."
@@ -103,14 +93,14 @@ def embed_file_in_pdf_1(input_pdf, xml_file, output_pdf):
 
         metadata_bytes = xmp_metadata.encode("utf-8")
 
-        # Ensure the PDF has the necessary PDF/A-3 identifiers
+
         if "/StructTreeRoot" not in pdf.Root:
             pdf.Root["/StructTreeRoot"] = pikepdf.Dictionary()
         pdf.Root["/Metadata"] = pdf.make_stream(metadata_bytes)
         pdf.Root["/MarkInfo"] = pikepdf.Dictionary({"/Marked": True})
         pdf.Root["/Lang"] = pikepdf.String("en-US")
 
-        # Embed the XML file
+
         with open(xml_file, "rb") as xml_f:
             xml_data = xml_f.read()
 
@@ -139,13 +129,12 @@ def embed_file_in_pdf_1(input_pdf, xml_file, output_pdf):
         )
         pdf.Root.Names.EmbeddedFiles.Names.append(embedded_file_dict)
 
-        # Set OutputIntent
         with open(icc_path, "rb") as icc_file:
             icc_data = icc_file.read()
             output_intent_dict = pikepdf.Dictionary(
                 {
                     "/Type": "/OutputIntent",
-                    "/S": "/GTS_PDFA1",
+                    "/S":GTS_PDFA1,
                     "/OutputConditionIdentifier": "sRGB",
                     "/Info": "sRGB IEC61966-2.1",
                     "/DestOutputProfile": pdf.make_stream(icc_data),
@@ -157,8 +146,8 @@ def embed_file_in_pdf_1(input_pdf, xml_file, output_pdf):
                 pdf.Root.OutputIntents.append(output_intent_dict)
 
 
-        pdf.Root["/GTS_PDFA1"] = pikepdf.Name("/PDF/A-3B")
-        pdf.docinfo["/GTS_PDFA1"] = "PDF/A-3B"
+        pdf.Root[GTS_PDFA1] = pikepdf.Name("/PDF/A-3B")
+        pdf.docinfo[GTS_PDFA1] = "PDF/A-3B"
         pdf.docinfo["/Title"] = "PDF/A-3 Example"
         pdf.docinfo["/Author"] = "John Doe"
         pdf.docinfo["/Subject"] = "PDF/A-3 Example with Embedded XML"
@@ -177,12 +166,9 @@ def embed_file_in_pdf(invoice_name, print_format, letterhead, language):
     """
 
     try:
-
-
         if not language:
             language = "en"
-        invoice_number = frappe.get_doc("Sales Invoice", invoice_name)
-
+        invoice_number = frappe.get_doc(sales_invoice_doctype, invoice_name)
 
         xml_file = None
         cleared_xml_file_name = "Cleared xml file " + invoice_name + ".xml"
@@ -194,20 +180,17 @@ def embed_file_in_pdf(invoice_name, print_format, letterhead, language):
 
         for attachment in attachments:
             file_name = attachment.get("file_name", None)
+            file=os.path.join(frappe.local.site, "private", "files", file_name)
 
             if file_name == cleared_xml_file_name:
-                xml_file = os.path.join(frappe.local.site, "private", "files", file_name)
-
+                xml_file = file
 
             elif file_name == reported_xml_file_name:
 
-                xml_file = os.path.join(frappe.local.site, "private", "files", file_name)
-
-
+                xml_file = file
 
         if not xml_file:
             frappe.throw(f"No XML file found for the invoice {invoice_name}. Please ensure the XML file is attached.")
-
 
 
         input_pdf = generate_invoice_pdf(
@@ -216,9 +199,6 @@ def embed_file_in_pdf(invoice_name, print_format, letterhead, language):
             letterhead=letterhead,
             print_format=print_format,
         )
-
-
-
 
         final_pdf = (
             frappe.local.site + "/private/files/PDF-A3 " + invoice_name + " output.pdf"
@@ -234,7 +214,7 @@ def embed_file_in_pdf(invoice_name, print_format, letterhead, language):
                 {
                     "doctype": "File",
                     "file_url": "/private/files/PDF-A3 " + invoice_name + " output.pdf",
-                    "attached_to_doctype": "Sales Invoice",
+                    "attached_to_doctype": sales_invoice_doctype,
                     "attached_to_name": invoice_name,
                     "is_private": 1,
                 }
@@ -258,8 +238,6 @@ def send_whatsapp_with_pdf_a3( message, invoice_name, print_format=None, letterh
     """
     try:
 
-        invoice = frappe.get_doc("Sales Invoice", invoice_name)
-
         pdf_a3_path = embed_file_in_pdf(invoice_name, print_format, letterhead, language)
 
         if not pdf_a3_path:
@@ -273,12 +251,11 @@ def send_whatsapp_with_pdf_a3( message, invoice_name, print_format=None, letterh
 
 
         whatsapp_config = frappe.get_doc("Whatsapp Saudi")
-        sales_invoice=frappe.get_doc("Sales Invoice", invoice_name)
+        sales_invoice=frappe.get_doc(sales_invoice_doctype, invoice_name)
         if sales_invoice.get("docstatus")==2:
             frappe.throw("Document is cancelled")
         customer=sales_invoice.get("customer")
         customer_doc=frappe.get_doc("Customer", customer)
-
 
         url = whatsapp_config.get("file_url")
         instance = whatsapp_config.get("instance_id")
@@ -288,7 +265,6 @@ def send_whatsapp_with_pdf_a3( message, invoice_name, print_format=None, letterh
             frappe.throw("No WhatsApp number found for the customer")
 
         phonenumber = get_receiver_phone_number(phone)
-
 
         payload = {
             "instanceid": instance,
@@ -302,7 +278,6 @@ def send_whatsapp_with_pdf_a3( message, invoice_name, print_format=None, letterh
         headers = {
             "content-type": "application/x-www-form-urlencoded"
         }
-
 
         response = requests.post(url, headers=headers, data=payload, timeout=10)
         response_json = response.text
@@ -333,19 +308,16 @@ def send_whatsapp_with_pdf_a3( message, invoice_name, print_format=None, letterh
         return {"success": False, "message": "An error occurred while sending the PDF/A-3 file"}
 
 
-def get_receiver_phone_number(phone_number):
-        phoneNumber = phone_number.replace("+","").replace("-","").replace(" ","")
-        if phoneNumber.startswith("+") == True:
-            phoneNumber = phoneNumber[1:]
-        elif phoneNumber.startswith("00") == True:
-            phoneNumber = phoneNumber[2:]
-        elif phoneNumber.startswith("0") == True:
-            if len(phoneNumber) == 10:
-                phoneNumber = "966" + phoneNumber[1:]
-        else:
-            if len(phoneNumber) < 10:
-                phoneNumber ="966" + phoneNumber
-        if phoneNumber.startswith("0") == True:
-            phoneNumber = phoneNumber[1:]
+def get_receiver_phone_number(number):
+    phone_number = number.replace("+", "").replace("-", "").replace(" ", "")
+    if phone_number.startswith("00"):
+        phone_number = phone_number[2:]
+    elif phone_number.startswith("0"):
+        if len(phone_number) == 10:
+            phone_number = "966" + phone_number[1:]
+        elif len(phone_number) < 10:
+            phone_number = "966" + phone_number
+    if phone_number.startswith("0"):
+        phone_number = phone_number[1:]
 
-        return phoneNumber
+    return phone_number
