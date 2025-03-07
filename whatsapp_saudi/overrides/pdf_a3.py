@@ -182,11 +182,7 @@ def embed_file_in_pdf(invoice_name, print_format, letterhead, language):
             file_name = attachment.get("file_name", None)
             file=os.path.join(frappe.local.site, "private", "files", file_name)
 
-            if file_name == cleared_xml_file_name:
-                xml_file = file
-
-            elif file_name == reported_xml_file_name:
-
+            if file_name in [cleared_xml_file_name, reported_xml_file_name]:
                 xml_file = file
 
         if not xml_file:

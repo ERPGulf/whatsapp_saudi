@@ -233,14 +233,9 @@ def send_whatsapp_with_pdf1(message, docname, doctype, print_format):
 
     for attachment in attachments:
         file_name = attachment.get("file_name", None)
-
-        if file_name == cleared_xml_file_name:
-            xml_file = os.path.join(frappe.local.site, "private", "files", file_name)
-
-
-        elif file_name == reported_xml_file_name:
-
-            xml_file = os.path.join(frappe.local.site, "private", "files", file_name)
+        file=os.path.join(frappe.local.site, "private", "files", file_name)
+        if file_name in [cleared_xml_file_name, reported_xml_file_name]:
+            xml_file = file
 
 
 
