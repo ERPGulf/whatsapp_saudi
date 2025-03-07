@@ -228,13 +228,13 @@ def embed_file_in_pdf(invoice_name, print_format, letterhead, language):
 
 
 @frappe.whitelist(allow_guest=True)
-def send_whatsapp_with_pdf_a3( message, invoice_name, print_format=None, letterhead=None, language="en"):
+def send_whatsapp_with_pdf_a3( message,docname, print_format=None, letterhead=None, language="en"):
     """
     Generate a PDF/A-3 file and send it via WhatsApp.
     """
     try:
 
-        pdf_a3_path = embed_file_in_pdf(invoice_name, print_format, letterhead, language)
+        pdf_a3_path = embed_file_in_pdf(docname, print_format, letterhead, language)
 
         if not pdf_a3_path:
             frappe.throw("Failed to generate PDF/A-3 file!")
@@ -247,7 +247,7 @@ def send_whatsapp_with_pdf_a3( message, invoice_name, print_format=None, letterh
 
 
         whatsapp_config = frappe.get_doc("Whatsapp Saudi")
-        sales_invoice=frappe.get_doc(sales_invoice_doctype, invoice_name)
+        sales_invoice=frappe.get_doc(sales_invoice_doctype,docname)
         if sales_invoice.get("docstatus")==2:
             frappe.throw("Document is cancelled")
         customer=sales_invoice.get("customer")
@@ -266,7 +266,7 @@ def send_whatsapp_with_pdf_a3( message, invoice_name, print_format=None, letterh
             "instanceid": instance,
             "token": token,
             "body": in_memory_url,
-            "filename": f"{invoice_name}.pdf",
+            "filename": f"{docname}.pdf",
             "caption": message,
             "phone": phonenumber
         }
