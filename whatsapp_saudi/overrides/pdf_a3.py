@@ -9,7 +9,7 @@ import requests
 import json
 import base64
 from frappe.utils import now
-
+import time
 sales_invoice_doctype="Sales Invoice"
 GTS_PDFA1 = "/GTS_PDFA1"
 
@@ -174,16 +174,21 @@ def embed_file_in_pdf(invoice_name, print_format, letterhead, language):
         cleared_xml_file_name = "Cleared xml file " + invoice_name + ".xml"
 
         reported_xml_file_name = "Reported xml file " + invoice_name + ".xml"
-        attachments = frappe.get_all(
-            "File", filters={"attached_to_name": invoice_name}, fields=["file_name"]
-        )
-
-        for attachment in attachments:
-            file_name = attachment.get("file_name", None)
-            file=os.path.join(frappe.local.site, "private", "files", file_name)
-
-            if file_name in [cleared_xml_file_name, reported_xml_file_name]:
-                xml_file = file
+        for _ in range(15):
+            attachments = frappe.get_all(
+                "File",
+                filters={"attached_to_name": invoice_name},
+                fields=["file_name"],
+            )
+            for attachment in attachments:
+                file_name = attachment.get("file_name")
+                if file_name in [cleared_xml_file_name, reported_xml_file_name]:
+                    xml_file = os.path.join(frappe.local.site, "private", "files", file_name)
+                    break
+            if xml_file:
+                break
+            time.sleep(1)
+            frappe.db.commit()
 
         if not xml_file:
             frappe.throw(f"No XML file found for the invoice {invoice_name}. Please ensure the XML file is attached.")

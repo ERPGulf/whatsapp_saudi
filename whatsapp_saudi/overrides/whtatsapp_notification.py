@@ -8,6 +8,8 @@ import io
 import base64
 from frappe.utils import now
 import os
+from whatsapp_saudi.overrides.pdf_a3 import embed_file_in_pdf
+from frappe.utils import get_url
 
 ERROR_MESSAGE = "success: false, reason: API access prohibited or incorrect instanceid or token"
 # to send whatsapp message and document using ultramsg
@@ -20,11 +22,20 @@ class ERPGulfNotification(Notification):
         return in_memory_url
 
 
- # fetch pdf from the create_pdf function and send to whatsapp
+
     @frappe.whitelist()
-    def send_whatsapp_with_pdf(self,doc,context):
-        memory_url=self.create_pdf(doc)
-        recipients = self.get_receiver_list(doc,context)
+
+    def send_whatsapp_with_pdf(self, doc, context):
+        pdf_a3_path = embed_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
+
+        if not pdf_a3_path:
+            frappe.throw("Failed to generate PDF/A-3 file!")
+
+        with open(pdf_a3_path.replace(get_url(), frappe.local.site), "rb") as pdf_file:
+            pdf_base64 = base64.b64encode(pdf_file.read()).decode()
+
+        memory_url = f"data:application/pdf;base64,{pdf_base64}"
+        recipients = self.get_receiver_list(doc, context)
         for receipt in recipients:
             number = receipt
             phoneNumber = self.get_receiver_phone_number(number)
@@ -32,45 +43,36 @@ class ERPGulfNotification(Notification):
             instance = frappe.get_doc('Whatsapp Saudi').get('instance_id')
             msg1 = frappe.render_template(self.message, context)
             token = frappe.get_doc('Whatsapp Saudi').get('token')
-        payload = {
-          'instanceid':instance,
-          'token': token,
-          'body':memory_url,
-          'filename':doc.name,
-          'caption': msg1,
-          'phone':phoneNumber
-        }
+            payload = {
+                'instanceid': instance,
+                'token': token,
+                'body': memory_url,
+                'filename': f"{doc.name}.pdf",
+                'caption': msg1,
+                'phone': phoneNumber
+            }
 
-        files = []
-        headers = {
-          'content-type': 'application/x-www-form-urlencoded',
-          'Cookie': 'PHPSESSID=e9603d8bdbea9f5bf851e36831b8ba16'
-        }
-
-        try:
-            response = requests.post(url, headers=headers, data=payload, files=files, timeout=30)
-            response_json=response.text
-            if response.status_code == 200:
-                response_dict = json.loads(response_json)
-                if response_dict.get("sent") and response_dict.get("id"):
-                    current_time = now()
-                    # If the message is sent successfully a success message response will be recorded in the WhatsApp Saudi success log.
-                    frappe.get_doc({
-                        "doctype": "whatsapp saudi success log",
-                        "title": "Message successfully sent ",
-                        "message": msg1,
-                        "to_number": phoneNumber,
-                        "time": current_time
-                    }).insert()
-
+            headers = {'content-type': 'application/x-www-form-urlencoded'}
+            try:
+                response = requests.post(url, headers=headers, data=payload, timeout=30)
+                response_json = response.text
+                if response.status_code == 200:
+                    response_dict = json.loads(response_json)
+                    if response_dict.get("sent") and response_dict.get("id"):
+                        frappe.get_doc({
+                            "doctype": "whatsapp saudi success log",
+                            "title": "Message successfully sent",
+                            "message": msg1,
+                            "to_number": phoneNumber,
+                            "time": now()
+                        }).insert()
+                    else:
+                        frappe.log_error("WhatsApp send failed", response_json)
                 else:
-                    frappe.log_error(ERROR_MESSAGE, frappe.get_traceback())
-            else:
-                frappe.log_error("status code is not 200", frappe.get_traceback())
-            return response
-        except requests.exceptions.RequestException:
-            frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())
-
+                    frappe.log_error("WhatsApp API error", response_json)
+                return response
+            except requests.exceptions.RequestException:
+                frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())
 
 
   #send message without pdf
@@ -84,7 +86,7 @@ class ERPGulfNotification(Notification):
             number = receipt
             frappe.log_error(number)
             phoneNumber =self.get_receiver_phone_number(number)
-    
+
         querystring = {
             "instanceid":instance,
             "token": token,
@@ -153,7 +155,7 @@ class ERPGulfNotification(Notification):
                 super(ERPGulfNotification, self).send(doc)
             except Exception:
                 frappe.log_error(title='Failed to send standard notification', message=frappe.get_traceback())
-                       
+
     def get_receiver_list(self, doc, context):
         """return receiver list based on the doc field and role specified"""
         receiver_list = []
