@@ -225,11 +225,22 @@ fixtures=[
 
 fixtures=[{ "dt":"Property Setter" ,"filters":[[
                 "name", "in",[
-                    "Notification-channel-options",] ]] 
+                    "Notification-channel-options",] ]]
+           }]
+fixtures=[{ "dt":"Custom Field" ,"filters":[[
+                "module", "in",["Whatsapp Saudi"] ]]
            }]
 doctype_js = {
-	"Notification" : "public/js/whatsapp_notification.js"
+    "Notification": "public/js/whatsapp_notification.js",
+    "Sales Invoice": [
+        "public/js/salesinvoice.js",
+        "public/js/whatsapp_send.js"
+    ]
+
 }
+
+
+
 
 override_doctype_class = {
 	"Notification": "whatsapp_saudi.overrides.whtatsapp_notification.ERPGulfNotification"

@@ -1,6 +1,6 @@
 frappe.notification = {
 	setup_fieldname_select: function (frm) {
-		
+
 		// get the doctype to update fields
 		if (!frm.doc.document_type) {
 			return;
@@ -39,18 +39,18 @@ frappe.notification = {
 
 			// set value changed options
 			frm.set_df_property("value_changed",
-			                "options", 
+			                "options",
 			                [""].concat(options));
-			frm.set_df_property("set_property_after_alert", 
-			                 "options",  
+			frm.set_df_property("set_property_after_alert",
+			                 "options",
 							 [""].concat(options));
 
 			// set date changed options
 			frm.set_df_property("date_changed",
 			                   "options",
 							    get_date_change_options());
-			
-			
+
+
 
 			let receiver_fields = [];
 			if (frm.doc.channel === "Email")  {

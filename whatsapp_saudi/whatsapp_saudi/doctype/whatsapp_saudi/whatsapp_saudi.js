@@ -1,11 +1,3 @@
-// Copyright (c) 2023, ERPGulf.com and contributors
-// For license information, please see license.txt
-
-// frappe.ui.form.on("Whatsapp Saudi", {
-// 	refresh(frm) {
-
-// 	},
-// });
 
 frappe.ui.form.on("Whatsapp Saudi", {
     refresh: function(frm) {
@@ -36,16 +28,16 @@ frappe.ui.form.on("Whatsapp Saudi", {
 function areCredentialsValid(frm) {
     const expectedFormat = /^https:\/\/api\.4whats\.net\/sendFile$/;
 
-    
+
       return (
         frm.doc.file_url &&
         expectedFormat.test(frm.doc.file_url) &&
         frm.doc.instance_id &&
         frm.doc.token &&
         frm.doc.to_number
-        
-        
-       
+
+
+
     );
 }
 
