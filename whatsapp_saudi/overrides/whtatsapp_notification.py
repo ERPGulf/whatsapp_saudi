@@ -133,16 +133,16 @@ class ERPGulfNotification(Notification):
                 if self.attach_print and self.print_format:
                     frappe.enqueue(
                         self.send_whatsapp_with_pdf,
-                        queue="short",
-                        timeout=200,
+                        queue="long",
+                        timeout=600,
                         doc=doc,
                         context=context
                     )
                 else:
                     frappe.enqueue(
                         self.send_whatsapp_without_pdf,
-                        queue="short",
-                        timeout=200,
+                        queue="long",
+                        timeout=600,
                         doc=doc,
                         context=context
                     )
