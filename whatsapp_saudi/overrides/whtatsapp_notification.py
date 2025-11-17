@@ -21,10 +21,286 @@ class ERPGulfNotification(Notification):
         in_memory_url = f"data:application/pdf;base64,{pdf_base64}"
         return in_memory_url
 
+    def upload_file(self, doc, context):
+        pdf_a3_path = embed_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
+
+        if not pdf_a3_path:
+            frappe.throw("Failed to generate PDF/A-3 file!")
+
+        with open(pdf_a3_path.replace(get_url(), frappe.local.site), "rb") as pdf_file:
+            pdf_base64 = base64.b64encode(pdf_file.read()).decode()
+
+        memory_url = f"data:application/pdf;base64,{pdf_base64}"
+        frappe.log_error(title='memory_url', message=memory_url)
+        recipients = self.get_receiver_list(doc, context)
+        for receipt in recipients:
+            number = receipt
+            phoneNumber = self.get_receiver_phone_number(number)
+            msg1 = frappe.render_template(self.message, context)
+            try:
+                doc = frappe.get_doc('Whatsapp Saudi')
+                url = doc.get('file_upload')
+                token = doc.get('raseyel_authorization_token')
+
+                uploaded_file = memory_url
+                if not uploaded_file:
+                    return {"error": "No file uploaded"}
+
+                header, encoded = memory_url.split(",", 1)
+                file_content = base64.b64decode(encoded)
+
+                file_name = f"{doc.name}.pdf"
+                mime_type = "application/pdf"
+
+                headers = {
+                    "Authorization": token
+                }
+
+                files = [
+                    ('file', (file_name, file_content, mime_type))
+                ]
+
+                response = requests.post(url, headers=headers, files=files)
+                frappe.log_error(title='file response', message=str(response.text))
+
+
+                try:
+                    return response.json()
+                except Exception:
+                    return {"error": "Invalid JSON response", "raw": response.text}
+
+            except Exception as e:
+                frappe.log_error(frappe.get_traceback(), "File Upload Error")
+                return {"error": str(e)}
+
+
+
+    def rasayel_whatsapp_file_message(self, doc, context):
+        recipients = self.get_receiver_list(doc, context)
+
+        for receipt in recipients:
+            number = receipt
+            phoneNumber = self.get_receiver_phone_number(number)
+
+            msg1 = frappe.render_template(self.message, context)
+
+            try:
+
+                upload_response = self.upload_file(doc, context)
+                if "error" in upload_response:
+                    return upload_response
+
+                attachment = upload_response.get("attachment", {})
+                blob_id = attachment.get("id")
+
+
+                if not blob_id:
+                    return {
+                        "error": "Failed to extract blob ID from upload response",
+                        "upload_response": upload_response
+                    }
+
+
+                ws_doc = frappe.get_doc('Whatsapp Saudi')
+                url = ws_doc.get('raseyel_file_api')
+                channel_id = int(ws_doc.get('channel_id'))
+                file_template_id = int(ws_doc.get('file_template_id'))
+                token = ws_doc.get('raseyel_authorization_token')
+
+
+                payload = json.dumps({
+                    "query": """
+                        mutation TemplateProactiveMessageCreate($input: MessageProactiveTemplateCreateInput!) {
+                            response: templateProactiveMessageCreate(input: $input) {
+                                message {
+                                    conversation { id }
+                                }
+                            }
+                        }
+                    """,
+                    "variables": {
+                        "input": {
+                            "channelId": channel_id,
+                            "receiver": phoneNumber,
+                            "components": [
+                                {
+                                    "type": "HEADER",
+                                    "parameters": [
+                                        {
+                                            "type": "DOCUMENT",
+                                            "blobOrAttachmentId": blob_id
+                                        }
+                                    ]
+                                }
+                            ],
+                            "messageTemplateId": file_template_id
+                        }
+                    }
+                })
+
+                headers = {
+                    'Authorization': token,
+                    'Content-Type': 'application/json'
+                }
+
+                response = requests.post(url, headers=headers, data=payload)
+                response_json = response.text
+
+
+                if response.status_code == 200:
+                    try:
+                        response_dict = json.loads(response_json)
+                    except Exception:
+                        frappe.log_error("Invalid JSON in WhatsApp API response", response_json)
+                        return {"error": "Invalid JSON response", "raw": response_json}
+
+
+                    conversation_id = (
+                        response_dict.get("data", {})
+                        .get("response", {})
+                        .get("message", {})
+                        .get("conversation", {})
+                        .get("id")
+                    )
+
+                    if conversation_id:
+
+                        frappe.get_doc({
+                            "doctype": "whatsapp saudi success log",
+                            "title": "Message successfully sent",
+                            "message": conversation_id,
+                            "to_number": phoneNumber,
+                            "time": now()
+                        }).insert(ignore_permissions=True)
+
+                        return {
+                            "success": True,
+                            "conversation_id": conversation_id,
+                            "message": "WhatsApp File Message sent successfully"
+                        }
+
+                    else:
+                        frappe.log_error("WhatsApp send failed (No conversation ID)", response_json)
+
+
+                else:
+
+                    frappe.log_error("WhatsApp API error", response_json)
+                    return {
+                        "error": "WhatsApp API error",
+                        "status_code": response.status_code,
+                        "raw": response_json
+                    }
+
+            except Exception as e:
+                frappe.log_error(frappe.get_traceback(), "Rasayel File Message Error")
+                return {"error": str(e)}
+
+
+
+    def rasayel_whatsapp_message(self, doc, context):
+        try:
+            ws_doc = frappe.get_doc('Whatsapp Saudi')
+
+            url = ws_doc.raseyel_message_api
+            message_template = ws_doc.message_template_id
+            channel_id = ws_doc.channel_id
+            token = ws_doc.raseyel_authorization_token
+
+            msg1 = frappe.render_template(self.message, context)
+
+            recipients = self.get_receiver_list(doc, context)
+
+            results = []
+
+            for recipient in recipients:
+                phone_number = self.get_receiver_phone_number(recipient)
+
+                payload = json.dumps({
+                    "phone": phone_number,
+                    "channel_id": channel_id,
+                    "type": "TEMPLATE",
+                    "template": {
+                        "message_template_id": int(message_template),
+                        "components": [
+                            {
+                                "type": "BODY",
+                                "parameters": [
+                                    {
+                                        "type": "TEXT",
+                                        "text": msg1
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                })
+
+                headers = {
+                    'Authorization': token,
+                    'Content-Type': 'application/json'
+                }
+
+                response = requests.post(url, headers=headers, data=payload)
+                response_json = response.text
+
+
+                if response.status_code == 201:
+                    try:
+                        response_dict = json.loads(response_json)
+                    except Exception:
+                        frappe.log_error("Invalid JSON response", response_json)
+                        continue
+
+                    message_id = response_dict.get("id")
+                    conversation_id = response_dict.get("conversation_id")
+
+                    if message_id and conversation_id:
+
+                        frappe.get_doc({
+                            "doctype": "whatsapp saudi success log",
+                            "title": "Message successfully sent",
+                            "message": message_id,
+                            "to_number": phone_number,
+                            "time": now()
+                        }).insert(ignore_permissions=True)
+
+                        results.append({
+                            "phone": phone_number,
+                            "success": True,
+                            "message_id": message_id,
+                            "conversation_id": conversation_id
+                        })
+
+                    else:
+                        frappe.log_error("Message send failed (missing IDs)", response_json)
+                        results.append({
+                            "phone": phone_number,
+                            "success": False,
+                            "error": "Incomplete success response",
+                            "raw": response_json
+                        })
+
+                else:
+                    frappe.log_error("WhatsApp API Error", response_json)
+                    results.append({
+                        "phone": phone_number,
+                        "success": False,
+                        "status_code": response.status_code,
+                        "raw": response_json
+                    })
+
+            return results
+
+        except Exception:
+            frappe.log_error(
+                title='Failed to send Rasayel Notification',
+                message=frappe.get_traceback()
+            )
+            return {"error": "Failed to send message"}
 
 
     @frappe.whitelist()
-
     def send_whatsapp_with_pdf(self, doc, context):
         pdf_a3_path = embed_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
 
@@ -84,7 +360,6 @@ class ERPGulfNotification(Notification):
         recipients = self.get_receiver_list(doc,context)
         for receipt in recipients:
             number = receipt
-            frappe.log_error(number)
             phoneNumber =self.get_receiver_phone_number(number)
 
         querystring = {
@@ -94,7 +369,6 @@ class ERPGulfNotification(Notification):
             "body":msg1
           }
         try:
-            frappe.log_error("WhatsApp API Payload", f"Query: {frappe.as_json(querystring)}")
             response = requests.get(url, params=querystring)
             response_json=response.text
             if response.status_code == 200:
@@ -123,29 +397,48 @@ class ERPGulfNotification(Notification):
         context = {"doc": doc, "alert": self, "comments": None}
         if doc.get("_comments"):
             context["comments"] = json.loads(doc.get("_comments"))
-
+        rasayel_api = frappe.get_doc('Whatsapp Saudi').rasayel_api
         if self.is_standard:
             self.load_standard_properties(context)
 
-        # Handle custom WhatsApp channel only
+
         if self.channel == "Whatsapp Saudi":
             try:
                 if self.attach_print and self.print_format:
-                    frappe.enqueue(
-                        self.send_whatsapp_with_pdf,
+                    if str(rasayel_api) == "1":
+                        frappe.enqueue(
+                        self.rasayel_whatsapp_file_message,
                         queue="long",
                         timeout=600,
                         doc=doc,
                         context=context
-                    )
+                        )
+                    else:
+
+                        frappe.enqueue(
+                            self.send_whatsapp_with_pdf,
+                            queue="long",
+                            timeout=600,
+                            doc=doc,
+                            context=context
+                        )
                 else:
-                    frappe.enqueue(
-                        self.send_whatsapp_without_pdf,
+                    if str(rasayel_api) == "1":
+                        frappe.enqueue(
+                        self.rasayel_whatsapp_message,
                         queue="long",
                         timeout=600,
                         doc=doc,
                         context=context
-                    )
+                        )
+                    else:
+                        frappe.enqueue(
+                            self.send_whatsapp_without_pdf,
+                            queue="long",
+                            timeout=600,
+                            doc=doc,
+                            context=context
+                        )
             except Exception:
                 frappe.log_error(title='Failed to send WhatsApp notification', message=frappe.get_traceback())
 
@@ -324,3 +617,181 @@ def get_receiver_phone_number1(number):
         phone_number = phone_number[1:]
 
     return phone_number
+
+
+
+@frappe.whitelist(allow_guest=True)
+def rasayel_whatsapp_message1(phone, message):
+    try:
+        doc = frappe.get_doc('Whatsapp Saudi')
+        url = doc.get('raseyel_message_api')
+        channel_id = int(doc.get('channel_id'))
+        message_template_id = int(doc.get('message_template_id'))
+        token = doc.get('raseyel_authorization_token')
+
+        payload = json.dumps({
+            "phone": phone,
+            "channel_id": channel_id,
+            "type": "TEMPLATE",
+            "template": {
+                "message_template_id": message_template_id,
+                "components": [
+                    {
+                        "type": "BODY",
+                        "parameters": [
+                            {
+                                "type": "TEXT",
+                                "text": message
+                            }
+                        ]
+                    }
+                ]
+            }
+        })
+
+        headers = {
+            'Authorization': token,
+            'Content-Type': 'application/json'
+        }
+
+        response = requests.post(url, headers=headers, data=payload)
+
+        if response.status_code != 200:
+            frappe.log_error(
+                title="Rasayel WhatsApp API Error",
+                message=f"Status: {response.status_code}\nResponse: {response.text}"
+            )
+            return frappe.Response(
+                json.dumps({
+                    "status": "error",
+                    "message": "Failed to send WhatsApp message",
+                    "response": response.text
+                }),
+                status=500,
+                mimetype="application/json"
+            )
+
+
+        return frappe.Response(
+            json.dumps({
+                "status": "success",
+                "response": json.loads(response.text)
+            }),
+            status=200,
+            mimetype="application/json"
+        )
+
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "Rasayel WhatsApp Message Exception")
+        return frappe.Response(
+            json.dumps({
+                "status": "error",
+                "message": str(e)
+            }),
+            status=500,
+            mimetype="application/json"
+        )
+
+
+
+
+@frappe.whitelist(allow_guest=True)
+def upload_file1():
+    try:
+        doc = frappe.get_doc('Whatsapp Saudi')
+        url = doc.get('file_upload')
+        token = doc.get('raseyel_authorization_token')
+
+        uploaded_file = frappe.request.files.get('file')
+        if not uploaded_file:
+            return {"error": "No file uploaded"}
+
+        file_content = uploaded_file.read()
+        file_name = uploaded_file.filename
+        mime_type = uploaded_file.mimetype or "application/octet-stream"
+
+        headers = {
+            "Authorization": token
+        }
+
+        files = [
+            ('file', (file_name, file_content, mime_type))
+        ]
+
+        response = requests.post(url, headers=headers, files=files)
+
+
+        try:
+            return response.json()
+        except Exception:
+            return {"error": "Invalid JSON response", "raw": response.text}
+
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "File Upload Error")
+        return {"error": str(e)}
+
+
+@frappe.whitelist(allow_guest=True)
+def rasayel_whatsapp_file_message1(phone):
+    try:
+
+        upload_response = upload_file()
+
+        if "error" in upload_response:
+            return upload_response
+
+        message_data = json.loads(upload_response.get("message", "{}"))
+        attachment = message_data.get("attachment", {})
+        blob_id = attachment.get("id")
+
+        if not blob_id:
+            return {"error": "Failed to extract blob ID from upload response", "upload_response": upload_response}
+
+
+        doc = frappe.get_doc('Whatsapp Saudi')
+        url = doc.get('raseyel_file_api')
+        channel_id = int(doc.get('channel_id'))
+        file_template_id = int(doc.get('file_template_id'))
+        token = doc.get('raseyel_authorization_token')
+
+        payload = json.dumps({
+            "query": """
+                mutation TemplateProactiveMessageCreate($input: MessageProactiveTemplateCreateInput!) {
+                    response: templateProactiveMessageCreate(input: $input) {
+                        message {
+                            conversation { id }
+                        }
+                    }
+                }
+            """,
+            "variables": {
+                "input": {
+                    "channelId": channel_id,
+                    "receiver": phone,
+                    "components": [
+                        {
+                            "type": "HEADER",
+                            "parameters": [
+                                {
+                                    "type": "DOCUMENT",
+                                    "blobOrAttachmentId": blob_id
+                                }
+                            ]
+                        }
+                    ],
+                    "messageTemplateId": file_template_id
+                }
+            }
+        })
+
+        headers = {
+            'Authorization': token,
+            'Content-Type': 'application/json'
+        }
+
+        response = requests.post(url, headers=headers, data=payload)
+        return response.text
+
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "Rasayel File Message Error")
+        return {"error": str(e)}
