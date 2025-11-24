@@ -74,11 +74,11 @@ function generateAndSendPDF(frm, title, method) {
 frappe.ui.form.on("Sales Invoice", {
     refresh: function (frm) {
         frm.add_custom_button(__('Send Pdf through WhatsApp'), function () {
-            generateAndSendPDF(frm, 'Send PDF via WhatsApp', 'whatsapp_saudi.overrides.whtatsapp_notification.send_whatsapp_with_pdf1');
+            generateAndSendPDF(frm, 'Send PDF via WhatsApp', 'whatsapp_saudi.overrides.whtatsapp_notification.get_whatsapp_pdf');
         });
 
         frm.add_custom_button(__('Send PDF-A3 through WhatsApp'), function () {
-            generateAndSendPDF(frm, 'Send PDF-A3 via WhatsApp', 'whatsapp_saudi.overrides.pdf_a3.send_whatsapp_with_pdf_a3');
+            generateAndSendPDF(frm, 'Send PDF-A3 via WhatsApp', 'whatsapp_saudi.overrides.whtatsapp_notification.get_whatsapp_pdf_a3');
         });
     }
 });

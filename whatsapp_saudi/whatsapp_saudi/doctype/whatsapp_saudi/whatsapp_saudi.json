@@ -13,14 +13,14 @@
   "instance_id",
   "from_number",
   "to_number",
-  "rasayel_api",
   "raseyel_message_api",
   "raseyel_file_api",
   "file_upload",
   "raseyel_authorization_token",
   "channel_id",
-  "message_template_id",
-  "file_template_id"
+  "column_break_mvtd",
+  "whatsapp_provider",
+  "message_template_id"
  ],
  "fields": [
   {
@@ -57,25 +57,19 @@
    "label": "Instance id "
   },
   {
-   "default": "0",
-   "fieldname": "rasayel_api",
-   "fieldtype": "Check",
-   "label": "Rasayel Api"
-  },
-  {
    "fieldname": "raseyel_message_api",
    "fieldtype": "Data",
-   "label": "Raseyel Message API"
+   "label": "Raseyel Message url"
   },
   {
    "fieldname": "raseyel_file_api",
    "fieldtype": "Data",
-   "label": "Raseyel File API"
+   "label": "Raseyel File url"
   },
   {
    "fieldname": "file_upload",
    "fieldtype": "Data",
-   "label": "File Upload"
+   "label": "File Upload url"
   },
   {
    "fieldname": "raseyel_authorization_token",
@@ -88,20 +82,26 @@
    "label": "Channel Id"
   },
   {
-   "fieldname": "message_template_id",
-   "fieldtype": "Data",
-   "label": "Message Template Id"
+   "fieldname": "column_break_mvtd",
+   "fieldtype": "Column Break"
   },
   {
-   "fieldname": "file_template_id",
+   "default": "Whats.net",
+   "fieldname": "whatsapp_provider",
+   "fieldtype": "Select",
+   "label": " WhatsApp Provider",
+   "options": "Whats.net\nRasayel"
+  },
+  {
+   "fieldname": "message_template_id",
    "fieldtype": "Data",
-   "label": "File Template Id"
+   "label": "Message Template ID"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-11-14 05:44:35.119446",
+ "modified": "2025-11-24 05:43:54.407362",
  "modified_by": "Administrator",
  "module": "Whatsapp Saudi",
  "name": "Whatsapp Saudi",
