@@ -1192,7 +1192,7 @@ def rasayel_whatsapp_file_message_pdfa3(doctype, docname, print_format):
                 "raw": response_text
             }
 
-        # Step 8: Parse Rasayel response JSON
+
         try:
             response_dict = response.json()
         except Exception:
@@ -1202,7 +1202,6 @@ def rasayel_whatsapp_file_message_pdfa3(doctype, docname, print_format):
             )
             return {"error": "Invalid JSON response", "raw": response_text}
 
-        # Extract conversation ID
         conversation_id = (
             response_dict.get("data", {})
                         .get("data", {})
@@ -1211,7 +1210,7 @@ def rasayel_whatsapp_file_message_pdfa3(doctype, docname, print_format):
                         .get("id")
         )
 
-        # Log if missing
+
         if not conversation_id:
             frappe.log_error(
                 title="No conversation ID in Rasayel response",
@@ -1222,7 +1221,7 @@ def rasayel_whatsapp_file_message_pdfa3(doctype, docname, print_format):
                 "raw": response_dict
             }
 
-        # Step 9: Log success
+
         frappe.get_doc({
             "doctype": "whatsapp saudi success log",
             "title": "Message successfully sent",

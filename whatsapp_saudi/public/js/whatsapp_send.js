@@ -8,7 +8,7 @@ function generateAndSendPDF(frm, title, method) {
                 label: __('Print Format'),
                 options: 'Print Format',
                 reqd: 1,
-                get_query: function () {
+                get_query: () => {
                     return { filters: { doc_type: 'Sales Invoice' } };
                 }
             },
@@ -16,8 +16,7 @@ function generateAndSendPDF(frm, title, method) {
                 fieldtype: 'Link',
                 fieldname: 'letterhead',
                 label: __('Letterhead'),
-                options: 'Letter Head',
-                reqd: 0
+                options: 'Letter Head'
             },
             {
                 fieldtype: 'Link',
@@ -28,7 +27,7 @@ function generateAndSendPDF(frm, title, method) {
             }
         ],
         primary_action_label: __('Generate & Send'),
-        primary_action: function () {
+        primary_action() {
             const values = dialog.get_values();
             if (!values) {
                 frappe.msgprint(__('Please fill all required fields.'));
@@ -45,24 +44,15 @@ function generateAndSendPDF(frm, title, method) {
                     letterhead: values.letterhead,
                     language: values.language
                 },
+                freeze: true,
+                freeze_message: __("Generating PDF & Sending WhatsApp message..."),
                 callback: function (response) {
                     if (response.message) {
                         frappe.msgprint(__('PDF Generated & WhatsApp message sent successfully!'));
                     } else {
                         frappe.msgprint(__('Failed to send WhatsApp message.'));
                     }
-                },
-                error: function (err) {
-                    frappe.msgprint(__('Error sending WhatsApp message.'));
-                    console.log(err);
-                },
-                always: function () {
-                    console.log('WhatsApp message request completed.');
-                },
-                btn: this,
-                freeze: true,
-                freeze_message: __("Generating PDF & Sending WhatsApp message..."),
-                async: true
+                }
             });
 
             dialog.hide();
@@ -72,13 +62,18 @@ function generateAndSendPDF(frm, title, method) {
 }
 
 frappe.ui.form.on("Sales Invoice", {
-    refresh: function (frm) {
-        frm.add_custom_button(__('Send Pdf through WhatsApp'), function () {
-            generateAndSendPDF(frm, 'Send PDF via WhatsApp', 'whatsapp_saudi.overrides.whtatsapp_notification.get_whatsapp_pdf');
+    refresh(frm) {
+
+        // Add buttons to MENU
+        frm.page.add_menu_item(__('Send Pdf through WhatsApp'), function () {
+            generateAndSendPDF(frm, 'Send PDF via WhatsApp',
+                'whatsapp_saudi.overrides.whtatsapp_notification.get_whatsapp_pdf');
         });
 
-        frm.add_custom_button(__('Send PDF-A3 through WhatsApp'), function () {
-            generateAndSendPDF(frm, 'Send PDF-A3 via WhatsApp', 'whatsapp_saudi.overrides.whtatsapp_notification.get_whatsapp_pdf_a3');
+        frm.page.add_menu_item(__('Send PDF-A3 through WhatsApp'), function () {
+            generateAndSendPDF(frm, 'Send PDF-A3 via WhatsApp',
+                'whatsapp_saudi.overrides.whtatsapp_notification.get_whatsapp_pdf_a3');
         });
+
     }
 });
