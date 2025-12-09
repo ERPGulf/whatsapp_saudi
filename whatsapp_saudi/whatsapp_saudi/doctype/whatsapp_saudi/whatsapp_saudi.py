@@ -1,7 +1,6 @@
 # Copyright (c) 2023, ERPGulf.com and contributors
 # For license information, please see license.txt
 
-# import frappe
 from frappe.model.document import Document
 
 import requests
@@ -29,7 +28,7 @@ def create_pdf(allow_guest=True):
 def send_message(phone,url,instance,token):
     memory_url=create_pdf()
 
-    phoneNumber =get_receiver_phone_number(number=phone)
+    phone_number = get_receiver_phone_number(number=phone)
 
     pdf_url=url
     payload = {
@@ -38,7 +37,7 @@ def send_message(phone,url,instance,token):
         'body':memory_url,
         'filename': 'Company',
         'caption':"this is a test message",
-        'phone':phoneNumber
+        'phone': phone_number
     }
 
     files = []
@@ -88,21 +87,21 @@ def send_message(phone,url,instance,token):
 #api for get receiver phone number
 
 def get_receiver_phone_number(number):
-        phoneNumber = number.replace("+","").replace("-","")
-        if phoneNumber.startswith("+") == True:
-            phoneNumber = phoneNumber[1:]
-        elif phoneNumber.startswith("00") == True:
-            phoneNumber = phoneNumber[2:]
-        elif phoneNumber.startswith("0") == True:
-            if len(phoneNumber) == 10:
-                phoneNumber = "966" + phoneNumber[1:]
-        else:
-            if len(phoneNumber) < 10:
-                phoneNumber ="966" + phoneNumber
-        if phoneNumber.startswith("0") == True:
-            phoneNumber = phoneNumber[1:]
+    phone_number = number.replace("+","").replace("-","")
+    if phone_number.startswith("+") == True:
+        phone_number = phone_number[1:]
+    elif phone_number.startswith("00") == True:
+        phone_number = phone_number[2:]
+    elif phone_number.startswith("0") == True:
+        if len(phone_number) == 10:
+            phone_number = "966" + phone_number[1:]
+    else:
+        if len(phone_number) < 10:
+            phone_number ="966" + phone_number
+    if phone_number.startswith("0") == True:
+        phone_number = phone_number[1:]
 
-        return phoneNumber
+    return phone_number
 
 
 #api for receive message and store in database
@@ -150,7 +149,7 @@ def upload_file_pdf(docname):
 
     whatsapp_conf = frappe.get_doc("Whatsapp Saudi")
 
-    # 4. Prepare file upload
+
     try:
         url = whatsapp_conf.file_upload
         token = whatsapp_conf.raseyel_authorization_token
@@ -158,9 +157,9 @@ def upload_file_pdf(docname):
         if not memory_url:
             return {"error": "PDF not generated"}
 
-        # Decode Base64 PDF
+
         try:
-            header, encoded = memory_url.split(",", 1)
+            _, encoded = memory_url.split(",", 1)
             file_content = base64.b64decode(encoded)
         except Exception:
             return {"error": "PDF base64 decode failed"}
@@ -174,7 +173,7 @@ def upload_file_pdf(docname):
             'file': (file_name, file_content, mime_type)
         }
 
-        # 5. Send Request
+
         response = requests.post(url, headers=headers, files=files)
 
         try:
@@ -281,7 +280,7 @@ def rasayel_whatsapp_file_message_pdf(docname):
                 "raw": response_text
             }
 
-        # Step 8: Parse Rasayel response JSON
+
         try:
             response_dict = response.json()
         except Exception:
@@ -290,7 +289,6 @@ def rasayel_whatsapp_file_message_pdf(docname):
                 message=response_text
             )
             return {"error": "Invalid JSON response", "raw": response_text}
-
 
         conversation_id = (
             response_dict.get("data", {})
