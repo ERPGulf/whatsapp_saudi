@@ -12,6 +12,7 @@ from whatsapp_saudi.overrides.pdf_a3 import embed_file_in_pdf
 from frappe.utils import get_url
 from whatsapp_saudi.overrides.pdf_a3 import send_whatsapp_with_pdf_a3
 ERROR_MESSAGE = "success: false, reason: API access prohibited or incorrect instanceid or token"
+ERROR_MESSAGE1= "Failed to close conversation"
 # to send whatsapp message and document using ultramsg
 class ERPGulfNotification(Notification):
     def create_pdf(self,doc):
@@ -238,7 +239,7 @@ class ERPGulfNotification(Notification):
                     try:
                         close_conversation(conversation_id)
                     except Exception:
-                        frappe.log_error(frappe.get_traceback(), "Failed to close conversation")
+                        frappe.log_error(frappe.get_traceback(),ERROR_MESSAGE1)
 
 
 
@@ -359,7 +360,7 @@ class ERPGulfNotification(Notification):
                         try:
                             close_conversation(conversation_id)
                         except Exception:
-                            frappe.log_error(frappe.get_traceback(), "Failed to close conversation")
+                            frappe.log_error(frappe.get_traceback(), ERROR_MESSAGE1)
 
 
                         results.append({
@@ -1012,7 +1013,7 @@ def rasayel_whatsapp_file_message_pdf(doctype, docname, print_format):
         try:
             close_conversation(conversation_id)
         except Exception:
-            frappe.log_error(frappe.get_traceback(), "Failed to close conversation")
+            frappe.log_error(frappe.get_traceback(),ERROR_MESSAGE1)
 
         return {
             "success": True,
@@ -1252,7 +1253,7 @@ def rasayel_whatsapp_file_message_pdfa3(doctype, docname, print_format):
         try:
             close_conversation(conversation_id)
         except Exception:
-            frappe.log_error(frappe.get_traceback(), "Failed to close conversation")
+            frappe.log_error(frappe.get_traceback(),ERROR_MESSAGE1)
 
         return {
             "success": True,
