@@ -74,6 +74,9 @@ class ERPGulfNotification(Notification):
 
 
 
+
+
+
     def rasayel_whatsapp_file_message(self, doc, context):
         recipients = self.get_receiver_list(doc, context)
 
@@ -232,6 +235,14 @@ class ERPGulfNotification(Notification):
                         "time": now()
                     }).insert(ignore_permissions=True)
 
+                    try:
+                        close_conversation(conversation_id)
+                    except Exception:
+                        frappe.log_error(frappe.get_traceback(), "Failed to close conversation")
+
+
+
+
                     return {
                         "success": True,
                         "conversation_id": conversation_id,
@@ -343,6 +354,13 @@ class ERPGulfNotification(Notification):
                             "to_number": phone_number,
                             "time": now()
                         }).insert(ignore_permissions=True)
+
+
+                        try:
+                            close_conversation(conversation_id)
+                        except Exception:
+                            frappe.log_error(frappe.get_traceback(), "Failed to close conversation")
+
 
                         results.append({
                             "phone": phone_number,
@@ -776,7 +794,7 @@ def rasayel_whatsapp_message1(phone, message):
 
 @frappe.whitelist(allow_guest=True)
 def upload_file_pdf(doctype, docname, print_format):
-    # 1. Generate PDF
+
     try:
         memory_url = create_pdf1(doctype, docname, print_format)
     except Exception as e:
@@ -786,7 +804,6 @@ def upload_file_pdf(doctype, docname, print_format):
         )
         return {"status": "error", "message": "PDF generation failed."}
 
-    # 2. Locate XML file
     cleared_xml = f"Cleared xml file {docname}.xml"
     reported_xml = f"Reported xml file {docname}.xml"
 
@@ -807,14 +824,14 @@ def upload_file_pdf(doctype, docname, print_format):
     if not xml_file:
         frappe.throw(f"No XML file found for {docname}")
 
-    # 3. Basic validations
+
     invoice = frappe.get_doc("Sales Invoice", docname)
     if invoice.docstatus == 2:
         frappe.throw("Document is cancelled")
 
     whatsapp_conf = frappe.get_doc("Whatsapp Saudi")
 
-    # 4. Prepare file upload
+
     try:
         url = whatsapp_conf.file_upload
         token = whatsapp_conf.raseyel_authorization_token
@@ -822,7 +839,7 @@ def upload_file_pdf(doctype, docname, print_format):
         if not memory_url:
             return {"error": "PDF not generated"}
 
-        # Decode Base64 PDF
+
         try:
             header, encoded = memory_url.split(",", 1)
             file_content = base64.b64decode(encoded)
@@ -838,7 +855,7 @@ def upload_file_pdf(doctype, docname, print_format):
             'file': (file_name, file_content, mime_type)
         }
 
-        # 5. Send Request
+
         response = requests.post(url, headers=headers, files=files)
 
         try:
@@ -854,7 +871,7 @@ def upload_file_pdf(doctype, docname, print_format):
 @frappe.whitelist(allow_guest=True)
 def rasayel_whatsapp_file_message_pdf(doctype, docname, print_format):
     try:
-        # Step 1: Upload PDF to Rasayel
+
         upload_response = upload_file_pdf(doctype, docname, print_format)
 
         if not upload_response or "error" in upload_response:
@@ -956,7 +973,7 @@ def rasayel_whatsapp_file_message_pdf(doctype, docname, print_format):
                 "raw": response_text
             }
 
-        # Step 8: Parse Rasayel response JSON
+
         try:
             response_dict = response.json()
         except Exception:
@@ -992,6 +1009,10 @@ def rasayel_whatsapp_file_message_pdf(doctype, docname, print_format):
             "to_number": phone_number,
             "time": now()
         }).insert(ignore_permissions=True)
+        try:
+            close_conversation(conversation_id)
+        except Exception:
+            frappe.log_error(frappe.get_traceback(), "Failed to close conversation")
 
         return {
             "success": True,
@@ -1115,19 +1136,18 @@ def rasayel_whatsapp_file_message_pdfa3(doctype, docname, print_format):
                 "upload_response": upload_response
             }
 
-        # Step 3: Load Rasayel Config
+
         doc = frappe.get_doc('Whatsapp Saudi')
         url = doc.get('raseyel_file_api')
         channel_id = int(doc.get('channel_id'))
         file_template_id = int(doc.get('message_template_id'))
         token = doc.get('raseyel_authorization_token')
 
-        # Step 4: Validate Invoice
         sales_invoice = frappe.get_doc("Sales Invoice", docname)
         if sales_invoice.docstatus == 2:
             frappe.throw("Document is cancelled")
 
-        # Step 5: Customer phone
+
         customer = sales_invoice.customer
         customer_doc = frappe.get_doc("Customer", customer)
 
@@ -1173,14 +1193,14 @@ def rasayel_whatsapp_file_message_pdfa3(doctype, docname, print_format):
             'Content-Type': 'application/json'
         }
 
-        # Step 7: Send Request
+
         response = requests.post(url, headers=headers, data=payload)
 
-        # Always get the raw text
-        response_text = response.text
-        frappe.log_error("response_text",response_text)
 
-        # If API failed, log and stop
+        response_text = response.text
+
+
+
         if response.status_code != 200:
             frappe.log_error(
                 title = "Rasayel API Error",
@@ -1229,6 +1249,10 @@ def rasayel_whatsapp_file_message_pdfa3(doctype, docname, print_format):
             "to_number": phone_number,
             "time": now()
         }).insert(ignore_permissions=True)
+        try:
+            close_conversation(conversation_id)
+        except Exception:
+            frappe.log_error(frappe.get_traceback(), "Failed to close conversation")
 
         return {
             "success": True,
@@ -1266,7 +1290,6 @@ def get_whatsapp_pdf_a3(message, docname, doctype, print_format):
         rasayel_api = frappe.get_doc('Whatsapp Saudi').whatsapp_provider
 
         if rasayel_api == "Rasayel":
-            frappe.log_error("pdf a3", rasayel_api)
             return rasayel_whatsapp_file_message_pdfa3(doctype, docname, print_format)
         else:
             return send_whatsapp_with_pdf_a3(message, docname, doctype, print_format)
@@ -1274,3 +1297,33 @@ def get_whatsapp_pdf_a3(message, docname, doctype, print_format):
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Rasayel File Message Error")
         return {"error": str(e)}
+
+
+def close_conversation(conversation_id):
+        ws_doc = frappe.get_doc("Whatsapp Saudi")
+        url = ws_doc.raseyel_file_api
+        token = ws_doc.raseyel_authorization_token
+
+        payload = {
+            "query": """
+            mutation ConversationSetState($input: ConversationSetStateInput!) {
+                response: conversationSetState(input: $input) {
+                    message { id }
+                }
+            }
+            """,
+            "variables": {
+                "input": {
+                    "conversationId": conversation_id,
+                    "state": "CLOSED"
+                }
+            }
+        }
+
+        headers = {
+            'Authorization':token,
+            'Content-Type': 'application/json'
+        }
+
+        response = requests.post(url, headers=headers, json=payload)
+        return response.json()
