@@ -12,7 +12,8 @@ from frappe.core.doctype.role.role import get_info_based_on_role, get_user_info
 
 ERROR_MESSAGE = "success: false, reason: API access prohibited or incorrect instanceid or token"
 ERROR_MESSAGE1 = "Failed to close conversation"
-
+Type="application/json"
+Type_pdf="application/pdf"
 
 
 
@@ -56,7 +57,7 @@ def upload_file_common(url, token, memory_url, filename):
         return {"error": "Invalid memory_url/base64"}
 
     headers = {"Authorization": token}
-    files = {"file": (filename, file_content, "application/pdf")}
+    files = {"file": (filename, file_content, Type_pdf)}
     try:
         response = requests.post(url, headers=headers, files=files)
     except Exception as e:
@@ -70,7 +71,7 @@ def upload_file_common(url, token, memory_url, filename):
 
 
 def send_graphql(url, token, query, variables):
-    headers = {"Authorization": token, "Content-Type": "application/json"}
+    headers = {"Authorization": token, "Content-Type":Type}
     payload = {"query": query, "variables": variables}
     try:
         resp = requests.post(url, headers=headers, json=payload)
@@ -206,7 +207,7 @@ class ERPGulfNotification(Notification):
 
                 headers = {
                     "Authorization": token,
-                    "Content-Type": "application/json"
+                    "Content-Type": Type
                 }
 
                 components_normal = [
@@ -374,7 +375,7 @@ class ERPGulfNotification(Notification):
 
                 headers = {
                     'Authorization': token,
-                    'Content-Type': 'application/json'
+                    'Content-Type': Type
                 }
 
                 response = requests.post(url, headers=headers, data=payload)
@@ -601,7 +602,7 @@ def create_pdf1(doctype, docname, print_format):
             return Response(
                 json.dumps({"error": "Uncaught Server Exception detected."}),
                 status=500,
-                mimetype="application/json",
+                mimetype=Type,
             )
         file = frappe.get_print(doctype, docname, print_format, as_pdf=True)
         pdf_bytes = file if isinstance(file, (bytes, bytearray)) else io.BytesIO(file).getvalue()
@@ -738,7 +739,7 @@ def rasayel_whatsapp_message1(phone, message):
 
         headers = {
             'Authorization': token,
-            'Content-Type': 'application/json'
+            'Content-Type': Type
         }
 
         response = requests.post(url, headers=headers, data=payload)
@@ -755,7 +756,7 @@ def rasayel_whatsapp_message1(phone, message):
                     "response": response.text
                 }),
                 status=500,
-                mimetype="application/json"
+                mimetype= Type
             )
 
         return frappe.Response(
@@ -764,7 +765,7 @@ def rasayel_whatsapp_message1(phone, message):
                 "response": json.loads(response.text)
             }),
             status=200,
-            mimetype="application/json"
+            mimetype= Type
         )
 
     except Exception as e:
@@ -775,7 +776,7 @@ def rasayel_whatsapp_message1(phone, message):
                 "message": str(e)
             }),
             status=500,
-            mimetype="application/json"
+            mimetype= Type
         )
 
 
@@ -821,7 +822,7 @@ def upload_file_pdf(doctype, docname, print_format):
             return {"error": "PDF base64 decode failed"}
 
         file_name = f"{docname}.pdf"
-        mime_type = "application/pdf"
+        mime_type = Type_pdf
         headers = {"Authorization": token}
         files = {'file': (file_name, file_content, mime_type)}
 
@@ -896,7 +897,7 @@ def rasayel_whatsapp_file_message_pdf(doctype, docname, print_format):
             }
         })
 
-        headers = {'Authorization': token, 'Content-Type': 'application/json'}
+        headers = {'Authorization': token, 'Content-Type': Type}
 
         response = requests.post(url, headers=headers, data=payload)
         response_text = response.text
@@ -990,7 +991,7 @@ def upload_file_pdfa3(doctype,docname,print_format):
                 return {"error": "PDF base64 decode failed"}
 
             file_name = f"{docname}.pdf"
-            mime_type = "application/pdf"
+            mime_type = Type_pdf
 
             headers = {"Authorization": token}
 
@@ -1096,7 +1097,7 @@ def rasayel_whatsapp_file_message_pdfa3(doctype, docname, print_format):
 
         headers = {
             'Authorization': token,
-            'Content-Type': 'application/json'
+            'Content-Type': Type
         }
 
 

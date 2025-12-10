@@ -1,4 +1,5 @@
 from frappe.model.document import Document
+from whatsapp_saudi.overrides.whtatsapp_notification import normalize_phone
 import requests
 import frappe
 import io
@@ -6,7 +7,7 @@ import base64
 from frappe.utils import now
 import json
 import time
-
+ERROR_MESSAGE="Invalid JSON"
 
 class WhatsappSaudi(Document):
     pass
@@ -14,21 +15,7 @@ class WhatsappSaudi(Document):
 
 
 
-def normalize_phone(number):
-    phone_number = (number or "").replace("+", "").replace("-", "").replace(" ", "")
 
-    if phone_number.startswith("00"):
-        phone_number = phone_number[2:]
-    elif phone_number.startswith("0"):
-        if len(phone_number) == 10:
-            phone_number = "966" + phone_number[1:]
-        else:
-            phone_number = "966" + phone_number
-
-    if phone_number.startswith("0"):
-        phone_number = phone_number[1:]
-
-    return phone_number
 
 
 def create_pdf_base64():
@@ -122,8 +109,8 @@ def receive_whatsapp_message():
     try:
         json_data = json.loads(data)
     except Exception:
-        frappe.log_error("Invalid JSON", data)
-        return {"status": "error", "message": "Invalid JSON"}
+        frappe.log_error(ERROR_MESSAGE, data)
+        return {"status": "error", "message": ERROR_MESSAGE}
 
     try:
         instance_id = json_data.get("instanceId", "Unknown Instance")
@@ -250,7 +237,7 @@ def rasayel_whatsapp_file_message_pdf(docname):
         try:
             response_dict = response.json()
         except Exception:
-            return {"error": "Invalid JSON", "raw": response.text}
+            return {"error": ERROR_MESSAGE, "raw": response.text}
 
         conversation_id = (
             response_dict.get("data", {})
