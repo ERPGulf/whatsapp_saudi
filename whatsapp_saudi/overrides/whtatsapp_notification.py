@@ -14,7 +14,7 @@ ERROR_MESSAGE = "success: false, reason: API access prohibited or incorrect inst
 ERROR_MESSAGE1 = "Failed to close conversation"
 
 
-# ----------------- Helpers (deduped) -----------------
+
 
 def normalize_phone(number):
     phone_number = (number or "").replace("+", "").replace("-", "").replace(" ", "")
@@ -96,11 +96,11 @@ def close_conversation(conversation_id):
         frappe.log_error(frappe.get_traceback(), ERROR_MESSAGE1)
 
 
-# ----------------- Notification Class -----------------
+
 
 class ERPGulfNotification(Notification):
 
-    # ---------- Utility overrides / helpers ----------
+
     def get_receiver_list(self, doc, context):
         """return receiver list based on the doc field and role specified"""
         receiver_list = []
@@ -132,9 +132,9 @@ class ERPGulfNotification(Notification):
                 result[key.strip()] = value.strip().strip('"')
         return result
 
-    # ---------- PDF / Upload helpers as class methods ----------
+
     def create_pdf(self, doc):
-        # used in class methods to create PDF in-memory
+
         file = frappe.get_print(doc.doctype, doc.name, self.print_format, as_pdf=True)
         pdf_bytes = file if isinstance(file, (bytes, bytearray)) else io.BytesIO(file).getvalue()
         return generate_pdf_base64_from_bytes(pdf_bytes)
@@ -163,14 +163,14 @@ class ERPGulfNotification(Notification):
                 if not uploaded_file:
                     return {"error": "No file uploaded"}
 
-                # upload using common helper
+
                 return upload_file_common(url, token, memory_url, f"{doc.name}.pdf")
 
             except Exception:
                 frappe.log_error(frappe.get_traceback(), "File Upload Error")
                 return {"error": "File upload exception"}
 
-    # ---------- Rasayel: File message (document) ----------
+
     def rasayel_whatsapp_file_message(self, doc, context):
         recipients = self.get_receiver_list(doc, context)
 
@@ -393,7 +393,7 @@ class ERPGulfNotification(Notification):
                         })
                         continue
 
-                    # try to pick message id / conversation id from either shape
+
                     message_id = response_dict.get("id") or response_dict.get("message", {}).get("id")
                     conversation_id = response_dict.get("conversation_id") or response_dict.get("conversation", {}).get("id") or response_dict.get("data", {}).get("conversation_id")
 
@@ -441,7 +441,7 @@ class ERPGulfNotification(Notification):
             frappe.log_error(title='Failed to send Rasayel Notification', message=frappe.get_traceback())
             return {"error": "Failed to send message"}
 
-    # ---------- Ultramsg / non-Rasayel: send with PDF ----------
+
     @frappe.whitelist()
     def send_whatsapp_with_pdf(self, doc, context):
         pdf_a3_path = embed_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
@@ -584,14 +584,14 @@ class ERPGulfNotification(Notification):
             except Exception:
                 frappe.log_error(title='Failed to send WhatsApp notification', message=frappe.get_traceback())
         else:
-            # Call original Notification.send() for Email, Slack, SMS, System Notification
+
             try:
                 super(ERPGulfNotification, self).send(doc)
             except Exception:
                 frappe.log_error(title='Failed to send standard notification', message=frappe.get_traceback())
 
 
-# ----------------- Utility functions outside class -----------------
+
 
 @frappe.whitelist(allow_guest=True)
 def create_pdf1(doctype, docname, print_format):
@@ -671,7 +671,7 @@ def send_whatsapp_with_pdf1(message, docname, doctype, print_format):
     files = []
     headers = {
         'content-type': 'application/x-www-form-urlencoded',
-        # cookie left out - avoid hardcoding session cookies
+
     }
 
     try:
@@ -967,14 +967,14 @@ def upload_file_pdfa3(doctype,docname,print_format):
         if not xml_file:
             frappe.throw(f"No XML file found for {docname}")
 
-        # 3. Basic validations
+
         invoice = frappe.get_doc("Sales Invoice", docname)
         if invoice.docstatus == 2:
             frappe.throw("Document is cancelled")
 
         whatsapp_conf = frappe.get_doc("Whatsapp Saudi")
 
-        # 4. Prepare file upload
+
         try:
             url = whatsapp_conf.file_upload
             token = whatsapp_conf.raseyel_authorization_token
@@ -982,7 +982,7 @@ def upload_file_pdfa3(doctype,docname,print_format):
             if not memory_url:
                 return {"error": "PDF not generated"}
 
-            # Decode Base64 PDF
+
             try:
                 header, encoded = memory_url.split(",", 1)
                 file_content = base64.b64decode(encoded)
