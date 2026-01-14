@@ -1255,3 +1255,53 @@ def get_whatsapp_pdf_a3(message, docname, doctype, print_format):
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Rasayel File Message Error")
         return {"error": str(e)}
+
+
+
+@frappe.whitelist()
+def send_whatsapp_text(message, phone):
+    try:
+        # Fetch credentials from Whatsapp Saudi doctype
+        doc = frappe.get_doc("Whatsapp Saudi")
+        phone = normalize_phone(phone)
+
+        if not phone:
+            return {"success": False, "message": "Phone number is required"}
+
+        if not message:
+            return {"success": False, "message": "Message is required"}
+
+        url = doc.message_url
+
+        payload = {
+            "instanceid": doc.instance_id,
+            "token": doc.token,
+            "phone": phone,
+            "body": message
+        }
+
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+
+        response = requests.post(url, data=payload, headers=headers, timeout=30)
+
+        if response.status_code == 200:
+            response_dict = json.loads(response.text)
+
+            if response_dict.get("sent"):
+                frappe.get_doc({
+                    "doctype": "whatsapp saudi success log",
+                    "title": "Message successfully sent",
+                    "message": message,
+                    "to_number": phone,
+                    "time": now()
+                }).insert(ignore_permissions=True)
+
+                return {"status": "success"}
+
+        return {"status": "error"}
+
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "WhatsApp Send Error")
+        return {"success": False, "error": str(e)}
