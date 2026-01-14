@@ -636,8 +636,6 @@ class ERPGulfNotification(Notification):
                 frappe.log_error(title='Failed to send standard notification', message=frappe.get_traceback())
 
 
-
-
 @frappe.whitelist(allow_guest=True)
 def create_pdf1(doctype, docname, print_format):
     try:
