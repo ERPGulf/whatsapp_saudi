@@ -330,7 +330,15 @@ class ERPGulfNotification(Notification):
                 return {"error": "Send failed", "raw": response_json}
 
             except Exception:
-                frappe.log_error(frappe.get_traceback(), "Rasayel File Message Error")
+                frappe.log_error(
+                    title="Rasayel API Error",
+                    message=json.dumps({
+                        "invoice": doc.name,
+                        "response": response.text,
+                        "text":frappe.get_traceback()
+                    }, indent=2)
+                )
+
                 return {"error": "Exception while sending file message"}
 
     # ---------- Rasayel: Template text message (no file) ----------
@@ -428,7 +436,13 @@ class ERPGulfNotification(Notification):
                             "raw": response_json
                         })
                 else:
-                    frappe.log_error("WhatsApp API Error", response_json)
+                    frappe.log_error(
+                    title="Rasayel API Error",
+                    message=json.dumps({
+                        "invoice": doc.name,
+                        "response": response_json,
+                    }, indent=2)
+                )
                     results.append({
                         "phone": phone_number,
                         "success": False,
@@ -486,9 +500,25 @@ class ERPGulfNotification(Notification):
                             "time": now()
                         }).insert()
                     else:
-                        frappe.log_error("WhatsApp send failed", response_json)
+                        # frappe.log_error("WhatsApp send failed", response_json)
+                        frappe.log_error(
+                        title="API Error",
+                        message=json.dumps({
+                            "invoice": doc.name,
+                            "response": response_json,
+                        }, indent=2)
+                    )
+
                 else:
-                    frappe.log_error("WhatsApp API error", response_json)
+
+                    frappe.log_error(
+                    title="API Error",
+                    message=json.dumps({
+                        "invoice": doc.name,
+                        "response": response_json,
+                    }, indent=2)
+                )
+
                 return response
             except requests.exceptions.RequestException:
                 frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())
@@ -526,13 +556,27 @@ class ERPGulfNotification(Notification):
                         }).insert()
                         results.append({"phone": phoneNumber, "success": True})
                     else:
-                        frappe.log_error(ERROR_MESSAGE, frappe.get_traceback())
+                        # frappe.log_error(ERROR_MESSAGE, frappe.get_traceback())
+                        frappe.log_error(
+                            title="Failed to send notification",
+                            message=json.dumps({
+                                "invoice": doc.name,
+                                "response": response_json,
+                            }, indent=2)
+                        )
                         results.append({"phone": phoneNumber, "success": False, "raw": response_json})
                 else:
                     frappe.log_error("status code is not 200", frappe.get_traceback())
                     results.append({"phone": phoneNumber, "success": False, "status_code": response.status_code})
             except requests.exceptions.RequestException:
-                frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())
+
+                frappe.log_error(
+                    title="Failed to send notification",
+                    message=json.dumps({
+                        "invoice": doc.name,
+                        "response": response_json,
+                    }, indent=2)
+                )
                 results.append({"phone": phoneNumber, "success": False, "error": "request exception"})
         return results
 
@@ -590,8 +634,6 @@ class ERPGulfNotification(Notification):
                 super(ERPGulfNotification, self).send(doc)
             except Exception:
                 frappe.log_error(title='Failed to send standard notification', message=frappe.get_traceback())
-
-
 
 
 @frappe.whitelist(allow_guest=True)
@@ -934,7 +976,15 @@ def rasayel_whatsapp_file_message_pdf(doctype, docname, print_format):
         return {"success": True, "conversation_id": conversation_id, "message": "WhatsApp File Message sent successfully"}
 
     except Exception:
-        frappe.log_error(frappe.get_traceback(), "Rasayel File Message Error")
+        frappe.log_error(
+                    title="Rasayel API Error",
+                    message=json.dumps({
+                        "invoice": docname,
+                        "status_code": response.status_code,
+                        "response": response_text
+                    }, indent=2)
+                )
+
         return {"error": str(e)}
 
 def upload_file_pdfa3(doctype,docname,print_format):
@@ -1203,3 +1253,53 @@ def get_whatsapp_pdf_a3(message, docname, doctype, print_format):
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Rasayel File Message Error")
         return {"error": str(e)}
+
+
+
+@frappe.whitelist()
+def send_whatsapp_text(message, phone):
+    try:
+        # Fetch credentials from Whatsapp Saudi doctype
+        doc = frappe.get_doc("Whatsapp Saudi")
+        phone = normalize_phone(phone)
+
+        if not phone:
+            return {"success": False, "message": "Phone number is required"}
+
+        if not message:
+            return {"success": False, "message": "Message is required"}
+
+        url = doc.message_url
+
+        payload = {
+            "instanceid": doc.instance_id,
+            "token": doc.token,
+            "phone": phone,
+            "body": message
+        }
+
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+
+        response = requests.post(url, data=payload, headers=headers, timeout=30)
+
+        if response.status_code == 200:
+            response_dict = json.loads(response.text)
+
+            if response_dict.get("sent"):
+                frappe.get_doc({
+                    "doctype": "whatsapp saudi success log",
+                    "title": "Message successfully sent",
+                    "message": message,
+                    "to_number": phone,
+                    "time": now()
+                }).insert(ignore_permissions=True)
+
+                return {"status": "success"}
+
+        return {"status": "error"}
+
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "WhatsApp Send Error")
+        return {"success": False, "error": str(e)}
