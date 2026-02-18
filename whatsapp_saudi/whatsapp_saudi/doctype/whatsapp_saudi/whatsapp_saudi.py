@@ -303,13 +303,23 @@ def send_bevatel_message(phone):
     try:
         response = requests.post(url, headers=headers, json=payload)
 
-        if response.status_code != 200:
-            frappe.log_error(
-                title="Bevatel API Error",
-                message=response.text
-            )
+        response_data = response.json()
+        if response.status_code == 201 and response_data.get("message") == "Message created successfully":
 
-        return response.json()
+            frappe.get_doc({
+                "doctype": "whatsapp saudi success log",
+                "title": "Message successfully sent",
+                "message": str(response_data),
+                "to_number": phone,
+                "time": now()
+            }).insert(ignore_permissions=True)
+            frappe.msgprint("Sent successfully")
+
+        else:
+            frappe.log_error(
+                title="Bevatel WhatsApp API Error",
+                message=str(response_data)
+            )
 
     except Exception as e:
         frappe.log_error(
