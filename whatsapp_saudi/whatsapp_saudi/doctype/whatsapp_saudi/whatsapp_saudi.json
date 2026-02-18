@@ -7,20 +7,29 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "whatsnet_tab",
   "file_url",
   "message_url",
   "token",
   "instance_id",
   "from_number",
   "to_number",
-  "raseyel_message_api",
-  "raseyel_file_api",
-  "file_upload",
-  "raseyel_authorization_token",
-  "channel_id",
   "column_break_mvtd",
   "whatsapp_provider",
-  "message_template_id"
+  "message_template_id",
+  "rasayel_tab",
+  "file_upload",
+  "raseyel_file_api",
+  "raseyel_authorization_token",
+  "raseyel_message_api",
+  "channel_id",
+  "bevatel_tab",
+  "account_id",
+  "access_token",
+  "bavatel_file_url",
+  "inbox_id",
+  "template_name",
+  "language"
  ],
  "fields": [
   {
@@ -90,18 +99,63 @@
    "fieldname": "whatsapp_provider",
    "fieldtype": "Select",
    "label": " WhatsApp Provider",
-   "options": "Whats.net\nRasayel"
+   "options": "Whats.net\nRasayel\nBevatel"
   },
   {
    "fieldname": "message_template_id",
    "fieldtype": "Data",
    "label": "Message Template ID"
+  },
+  {
+   "fieldname": "rasayel_tab",
+   "fieldtype": "Tab Break",
+   "label": "Rasayel"
+  },
+  {
+   "fieldname": "bevatel_tab",
+   "fieldtype": "Tab Break",
+   "label": "Bevatel"
+  },
+  {
+   "fieldname": "account_id",
+   "fieldtype": "Data",
+   "label": "Account Id"
+  },
+  {
+   "fieldname": "access_token",
+   "fieldtype": "Data",
+   "label": "Access Token"
+  },
+  {
+   "fieldname": "whatsnet_tab",
+   "fieldtype": "Tab Break",
+   "label": "Whats.Net"
+  },
+  {
+   "fieldname": "bavatel_file_url",
+   "fieldtype": "Data",
+   "label": "Bavatel File URL"
+  },
+  {
+   "fieldname": "inbox_id",
+   "fieldtype": "Data",
+   "label": "Inbox Id"
+  },
+  {
+   "fieldname": "template_name",
+   "fieldtype": "Data",
+   "label": "Template Name"
+  },
+  {
+   "fieldname": "language",
+   "fieldtype": "Data",
+   "label": "Language"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-11-24 05:43:54.407362",
+ "modified": "2026-02-16 14:15:58.484426",
  "modified_by": "Administrator",
  "module": "Whatsapp Saudi",
  "name": "Whatsapp Saudi",
