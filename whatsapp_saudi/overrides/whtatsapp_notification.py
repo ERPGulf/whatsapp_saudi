@@ -4,6 +4,7 @@ import json
 import requests
 from werkzeug.wrappers import Response
 import io
+import re
 import base64
 from frappe.utils import now, get_url
 import os
@@ -30,6 +31,18 @@ def normalize_phone(number):
         phone_number = phone_number[1:]
     return phone_number
 
+def normalize_phone_bavatel(number):
+    phone_number = (number or "").replace("-", "").replace(" ", "")
+    if phone_number.startswith("00"):
+        phone_number = phone_number[2:]
+    elif phone_number.startswith("0"):
+        if len(phone_number) == 10:
+            phone_number = "966" + phone_number[1:]
+        else:
+            phone_number = "966" + phone_number
+    if phone_number.startswith("0"):
+        phone_number = phone_number[1:]
+    return phone_number
 
 def generate_pdf_base64_from_bytes(pdf_bytes: bytes) -> str:
     return f"data:application/pdf;base64,{base64.b64encode(pdf_bytes).decode()}"
@@ -122,6 +135,8 @@ class ERPGulfNotification(Notification):
 
     def get_receiver_phone_number(self, number):
         return normalize_phone(number)
+    def bavatel_phone(self,number):
+        return normalize_phone_bavatel(number)
 
     def parse_message_block(self, text):
         result = {}
@@ -457,6 +472,129 @@ class ERPGulfNotification(Notification):
             return {"error": "Failed to send message"}
 
 
+    def send_bevatel_template_message(self, doc, context):
+
+
+        try:
+            ws_doc = frappe.get_single('Whatsapp Saudi')
+
+            url = ws_doc.bavatel_file_url
+            api_account_id = ws_doc.account_id
+            api_access_token = ws_doc.access_token
+            inbox_id = ws_doc.inbox_id
+            default_template_name = ws_doc.template_name
+
+
+            recipients = self.get_receiver_list(doc, context)
+            results = []
+
+
+            message_content = self.message or ""
+
+            template_id_match = re.search(r'message_template_id\s*=\s*"([^"]+)"', message_content)
+            template_id = template_id_match.group(1) if template_id_match else None
+
+            language_match = re.search(r'language\s*=\s*"([^"]+)"', message_content)
+            language = language_match.group(1) if language_match else default_language
+            var_matches = re.findall(r'var\d+\s*=\s*(.*)', message_content)
+
+            frappe.log_error(
+                        title="Bevatel WhatsApp Send Failed",
+                        message=language
+                    )
+            variables = []
+            for var in var_matches:
+                rendered_value = frappe.render_template(var.strip(), {"doc": doc})
+                variables.append(rendered_value)
+
+            for recipient in recipients:
+                try:
+                    phone_number = self.bavatel_phone(recipient)
+
+
+                    template_data = {
+                        "language": language
+                    }
+
+                    if template_id and variables:
+
+                        template_data["name"] = template_id
+                        template_data["components"] = [
+                            {
+                                "type": "body",
+                                "parameters": [
+                                    {"type": "text", "text": v} for v in variables
+                                ]
+                            }
+                        ]
+
+
+                    else:
+                        template_data["name"] = default_template_name
+
+                    payload = {
+                        "inbox_id": inbox_id,
+                        "contact": {
+                            "phone_number": phone_number
+                        },
+                        "message": {
+                            "template": template_data
+                        }
+                    }
+
+                    headers = {
+                        "api_account_id": api_account_id,
+                        "api_access_token": api_access_token,
+                        "Content-Type": "application/json"
+                    }
+
+                    response = requests.post(
+                        url,
+                        headers=headers,
+                        json=payload,
+                        timeout=30
+                    )
+
+                    response_data = response.json()
+
+                    if response.status_code == 201 and response_data.get("message") == "Message created successfully":
+
+                        frappe.get_doc({
+                            "doctype": "whatsapp saudi success log",
+                            "title": "Message successfully sent",
+                            "message": str(response_data),
+                            "to_number": phone_number,
+                            "time": now()
+                        }).insert(ignore_permissions=True)
+
+                    else:
+                        frappe.log_error(
+                            title="Bevatel WhatsApp API Error",
+                            message=str(response_data)
+                        )
+
+                except Exception:
+                    frappe.log_error(
+                        title="Bevatel WhatsApp Send Failed",
+                        message=frappe.get_traceback()
+                    )
+
+            frappe.db.commit()
+            return results
+
+        except Exception:
+            frappe.log_error(
+                title="Bevatel Configuration Error",
+                message=frappe.get_traceback()
+            )
+
+            return {
+                "status": "error",
+                "message": "Configuration or unexpected error occurred. Check error logs."
+            }
+
+
+
     @frappe.whitelist()
     def send_whatsapp_with_pdf(self, doc, context):
         pdf_a3_path = embed_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
@@ -590,9 +728,17 @@ class ERPGulfNotification(Notification):
             self.load_standard_properties(context)
 
         if self.channel == "Whatsapp Saudi":
+            frappe.log_error(
+            title="DEBUG STEP 3 - Channel Matched",
+            message="Inside Whatsapp Saudi channel"
+            )
             try:
                 if self.attach_print and self.print_format:
                     if rasayel_api == "Rasayel":
+                        frappe.log_error(
+                        title="DEBUG STEP 5 - Rasayel PDF",
+                        message="Calling rasayel_whatsapp_file_message"
+                        )
                         # enqueue the rasayel file message
                         frappe.enqueue(
                             self.rasayel_whatsapp_file_message,
@@ -602,6 +748,10 @@ class ERPGulfNotification(Notification):
                             context=context
                         )
                     else:
+                        frappe.log_error(
+                        title="DEBUG STEP 6 - Other Provider PDF",
+                        message=f"Provider is {rasayel_api}"
+                         )
                         frappe.enqueue(
                             self.send_whatsapp_with_pdf,
                             queue="long",
@@ -610,7 +760,15 @@ class ERPGulfNotification(Notification):
                             context=context
                         )
                 else:
+                    frappe.log_error(
+                        title="DEBUG STEP 7 - No PDF Section",
+                        message="Inside non-pdf section"
+                    )
                     if rasayel_api == "Rasayel":
+                        frappe.log_error(
+                            title="DEBUG STEP 8 - Rasayel Normal",
+                            message="Calling rasayel_whatsapp_message"
+                        )
                         frappe.enqueue(
                             self.rasayel_whatsapp_message,
                             queue="long",
@@ -619,13 +777,26 @@ class ERPGulfNotification(Notification):
                             context=context
                         )
                     else:
-                        frappe.enqueue(
-                            self.send_whatsapp_without_pdf,
-                            queue="long",
-                            timeout=600,
-                            doc=doc,
-                            context=context
-                        )
+                        if rasayel_api == "Bevatel":
+                            frappe.log_error(
+                            title="DEBUG STEP 9 - Bavatel Triggered",
+                            message="Calling send_bevatel_template_message"
+                            )
+                            frappe.enqueue(
+                                self.send_bevatel_template_message,
+                                queue="long",
+                                timeout=600,
+                                doc=doc,
+                                context=context
+                            )
+                        else:
+                            frappe.enqueue(
+                                self.send_whatsapp_without_pdf,
+                                queue="long",
+                                timeout=600,
+                                doc=doc,
+                                context=context
+                            )
             except Exception:
                 frappe.log_error(title='Failed to send WhatsApp notification', message=frappe.get_traceback())
         else:
@@ -1259,7 +1430,7 @@ def get_whatsapp_pdf_a3(message, docname, doctype, print_format):
 @frappe.whitelist()
 def send_whatsapp_text(message, phone):
     try:
-        # Fetch credentials from Whatsapp Saudi doctype
+
         doc = frappe.get_doc("Whatsapp Saudi")
         phone = normalize_phone(phone)
 
@@ -1303,3 +1474,6 @@ def send_whatsapp_text(message, phone):
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "WhatsApp Send Error")
         return {"success": False, "error": str(e)}
+
+
+

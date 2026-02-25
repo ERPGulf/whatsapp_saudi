@@ -2,6 +2,7 @@ from frappe.model.document import Document
 from whatsapp_saudi.overrides.whtatsapp_notification import normalize_phone
 import requests
 import frappe
+import logging
 import io
 import base64
 from frappe.utils import now
@@ -268,3 +269,61 @@ def rasayel_whatsapp_file_message_pdf(docname):
     except Exception as e:
         frappe.log_error("Rasayel send failed", frappe.get_traceback())
         return {"error": str(e)}
+
+
+
+
+@frappe.whitelist(allow_guest=True)
+def send_bevatel_message(phone):
+    import requests
+
+    doc = frappe.get_doc("Whatsapp Saudi", frappe.form_dict.docname)
+
+    url = "https://chat.bevatel.com/developer/api/v1/messages"
+
+    payload = {
+        "inbox_id": doc.inbox_id,
+        "contact": {
+            "phone_number": phone
+        },
+        "message": {
+            "template": {
+                "name": "opening_message",
+                "language": "ar"
+            }
+        }
+    }
+
+    headers = {
+        "api_account_id": doc.account_id,
+        "api_access_token": doc.access_token,
+        "Content-Type": "application/json"
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+
+        response_data = response.json()
+        if response.status_code == 201 and response_data.get("message") == "Message created successfully":
+
+            frappe.get_doc({
+                "doctype": "whatsapp saudi success log",
+                "title": "Message successfully sent",
+                "message": str(response_data),
+                "to_number": phone,
+                "time": now()
+            }).insert(ignore_permissions=True)
+            frappe.msgprint("Sent successfully")
+
+        else:
+            frappe.log_error(
+                title="Bevatel WhatsApp API Error",
+                message=str(response_data)
+            )
+
+    except Exception as e:
+        frappe.log_error(
+            title="Bevatel Exception",
+            message=frappe.get_traceback()
+        )
+        frappe.throw("Failed to send message via Bevatel.")
