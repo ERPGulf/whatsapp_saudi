@@ -477,7 +477,7 @@ class ERPGulfNotification(Notification):
     def send_bevatel_template_message(self, doc, context):
 
         try:
-            # 🔹 Get Configuration
+
             ws_doc = frappe.get_single('Whatsapp Saudi')
 
             url = ws_doc.bavatel_file_url
@@ -492,15 +492,15 @@ class ERPGulfNotification(Notification):
 
             message_content = self.message or ""
 
-            # 🔹 Extract Template ID
+
             template_id_match = re.search(r'message_template_id\s*=\s*"([^"]+)"', message_content)
             template_id = template_id_match.group(1) if template_id_match else default_template_name
 
-            # 🔹 Extract Language
+
             language_match = re.search(r'language\s*=\s*"([^"]+)"', message_content)
             language = language_match.group(1) if language_match else default_language
 
-            # 🔹 Extract Variables (var1, var2, var3...)
+
             var_matches = re.findall(r'var\d+\s*=\s*"([^"]*)"', message_content)
 
             variables = []
@@ -508,7 +508,7 @@ class ERPGulfNotification(Notification):
                 rendered_value = frappe.render_template(var.strip(), {"doc": doc})
                 variables.append(rendered_value)
 
-            # 🔹 Send Message to Each Recipient
+
             for recipient in recipients:
                 try:
                     phone_number = self.bavatel_phone(recipient)
@@ -537,11 +537,8 @@ class ERPGulfNotification(Notification):
                         "Content-Type": "application/json"
                     }
 
-                    # 🔹 Debug Payload (Very Important)
-                    frappe.log_error(
-                        title="Bevatel Payload Debug",
-                        message=json.dumps(payload, indent=4)
-                    )
+
+
 
                     response = requests.post(
                         url,
@@ -740,10 +737,7 @@ class ERPGulfNotification(Notification):
             try:
                 if self.attach_print and self.print_format:
                     if rasayel_api == "Rasayel":
-                        frappe.log_error(
-                        title="DEBUG STEP 5 - Rasayel PDF",
-                        message="Calling rasayel_whatsapp_file_message"
-                        )
+
                         # enqueue the rasayel file message
                         frappe.enqueue(
                             self.rasayel_whatsapp_file_message,
@@ -753,10 +747,7 @@ class ERPGulfNotification(Notification):
                             context=context
                         )
                     else:
-                        frappe.log_error(
-                        title="DEBUG STEP 6 - Other Provider PDF",
-                        message=f"Provider is {rasayel_api}"
-                         )
+
                         frappe.enqueue(
                             self.send_whatsapp_with_pdf,
                             queue="long",
@@ -765,15 +756,8 @@ class ERPGulfNotification(Notification):
                             context=context
                         )
                 else:
-                    frappe.log_error(
-                        title="DEBUG STEP 7 - No PDF Section",
-                        message="Inside non-pdf section"
-                    )
+
                     if rasayel_api == "Rasayel":
-                        frappe.log_error(
-                            title="DEBUG STEP 8 - Rasayel Normal",
-                            message="Calling rasayel_whatsapp_message"
-                        )
                         frappe.enqueue(
                             self.rasayel_whatsapp_message,
                             queue="long",
@@ -783,10 +767,6 @@ class ERPGulfNotification(Notification):
                         )
                     else:
                         if rasayel_api == "Bevatel":
-                            frappe.log_error(
-                            title="DEBUG STEP 9 - Bavatel Triggered",
-                            message="Calling send_bevatel_template_message"
-                            )
                             frappe.enqueue(
                                 self.send_bevatel_template_message,
                                 queue="long",
