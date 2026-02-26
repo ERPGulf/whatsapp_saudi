@@ -552,7 +552,7 @@ class ERPGulfNotification(Notification):
 
                     response_data = response.json()
 
-                    # 🔹 Success Check
+
                     if response.status_code in [200, 201]:
                         frappe.get_doc({
                             "doctype": "whatsapp saudi success log",
