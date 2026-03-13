@@ -326,6 +326,22 @@ def get_receiver_phone_number(number):
 
 
 
+@frappe.whitelist()
+def bevatel_create_pdf(doctype, docname, print_format):
+
+    pdf = frappe.get_print(doctype, docname, print_format, as_pdf=True)
+
+    file_doc = frappe.get_doc({
+        "doctype": "File",
+        "file_name": f"{docname}.pdf",
+        "content": pdf,
+        "is_private": 0
+    })
+    file_doc.save(ignore_permissions=True)
+
+    file_url = frappe.utils.get_url(file_doc.file_url)
+
+    return file_url
 
 @frappe.whitelist(allow_guest=False)
 def embed_public_file_in_pdf(invoice_name, print_format, letterhead=None, language="en"):
