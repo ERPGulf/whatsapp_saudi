@@ -14,10 +14,10 @@ sales_invoice_doctype="Sales Invoice"
 GTS_PDFA1 = "/GTS_PDFA1"
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def generate_invoice_pdf(invoice, language, letterhead, print_format):
     """Function for generating invoice PDF based on the provided print format, letterhead, and language."""
-    invoice_name = invoice.name
+    invoice_name = invoice if isinstance(invoice, str) else invoice.name
 
     original_language = frappe.local.lang
     frappe.local.lang = language
@@ -187,6 +187,7 @@ def embed_file_in_pdf(invoice_name, print_format, letterhead, language):
                     break
             if xml_file:
                 break
+
             time.sleep(1)
             frappe.db.commit()
 
@@ -322,3 +323,120 @@ def get_receiver_phone_number(number):
         phone_number = phone_number[1:]
 
     return phone_number
+
+
+
+@frappe.whitelist()
+def bevatel_create_pdf(doctype, docname, print_format):
+
+    pdf = frappe.get_print(doctype, docname, print_format, as_pdf=True)
+
+    file_doc = frappe.get_doc({
+        "doctype": "File",
+        "file_name": f"{docname}.pdf",
+        "content": pdf,
+        "is_private": 0
+    })
+    file_doc.save(ignore_permissions=True)
+
+    file_url = frappe.utils.get_url(file_doc.file_url)
+
+    return file_url
+
+@frappe.whitelist(allow_guest=False)
+def embed_public_file_in_pdf(invoice_name, print_format, letterhead=None, language="en"):
+    """
+    Generate PDF/A3 with embedded XML and save it as a public file.
+    """
+
+    try:
+        if not language:
+            language = "en"
+
+        invoice_number = frappe.get_doc(sales_invoice_doctype, invoice_name)
+
+        xml_file = None
+        cleared_xml_file_name = "Cleared xml file " + invoice_name + ".xml"
+        reported_xml_file_name = "Reported xml file " + invoice_name + ".xml"
+
+
+        for _ in range(15):
+            attachments = frappe.get_all(
+                "File",
+                filters={"attached_to_name": invoice_name},
+                fields=["file_name"],
+            )
+
+            for attachment in attachments:
+                file_name = attachment.get("file_name")
+
+                if file_name in [cleared_xml_file_name, reported_xml_file_name]:
+                    xml_file = frappe.get_site_path("private", "files", file_name)
+                    break
+
+            if xml_file:
+                break
+
+            time.sleep(1)
+            frappe.db.commit()
+
+        if not xml_file:
+            frappe.throw(
+                f"No XML file found for the invoice {invoice_name}. Please ensure the XML file is attached."
+            )
+
+
+        input_pdf = generate_invoice_pdf(
+            invoice_number,
+            language=language,
+            letterhead=letterhead,
+            print_format=print_format,
+        )
+
+
+        final_file_name = f"PDF-A3 {invoice_name} output.pdf"
+        final_pdf = frappe.get_site_path("public", "files", final_file_name)
+
+
+        with pikepdf.Pdf.open(input_pdf, allow_overwriting_input=True) as pdf:
+            with open(xml_file, "rb") as xml_attachment:
+                pdf.attachments["invoice.xml"] = xml_attachment.read()
+
+            pdf.save(input_pdf)
+
+
+            embed_file_in_pdf_1(input_pdf, xml_file, final_pdf)
+
+
+        file_doc = frappe.get_doc({
+            "doctype": "File",
+            "file_url": f"/files/{final_file_name}",
+            "attached_to_doctype": sales_invoice_doctype,
+            "attached_to_name": invoice_name,
+            "is_private": 0
+        })
+
+        file_doc.insert(ignore_permissions=True)
+
+        frappe.db.commit()
+
+
+        return frappe.utils.get_url(f"/file/{file_doc.file_name}")
+
+    except pikepdf.PdfError as e:
+        frappe.log_error(frappe.get_traceback(), "PDF Processing Error")
+        frappe.throw(f"Error processing the PDF: {str(e)}")
+
+    except FileNotFoundError as e:
+        frappe.log_error(frappe.get_traceback(), "File Not Found Error")
+        frappe.throw(f"File not found: {str(e)}")
+
+    except IOError as e:
+        frappe.log_error(frappe.get_traceback(), "IO Error")
+        frappe.throw(f"I/O error: {str(e)}")
+
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "Embed PDF Error")
+        frappe.throw("Unexpected error while embedding XML into PDF")
+
+

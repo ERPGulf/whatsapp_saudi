@@ -48,7 +48,7 @@ function generateAndSendPDF(frm, title, method) {
                 freeze_message: __("Generating PDF & Sending WhatsApp message..."),
                 callback: function (response) {
                     const res = response.message;
-                    if (res && res.status === "success"){
+                    if (res && res.status === "success") {
                         frappe.msgprint(__('PDF Generated & WhatsApp message sent successfully!'));
                     } else {
                         frappe.msgprint(__('Failed to send WhatsApp message.'));
@@ -78,3 +78,5 @@ frappe.ui.form.on("Sales Invoice", {
 
     }
 });
+
+
