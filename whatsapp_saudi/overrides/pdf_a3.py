@@ -408,20 +408,20 @@ def embed_public_file_in_pdf(invoice_name, print_format, letterhead=None, langua
             embed_file_in_pdf_1(input_pdf, xml_file, final_pdf)
 
 
-        file_doc = frappe.get_doc({
+            file_doc = frappe.get_doc({
             "doctype": "File",
+            "file_name": final_file_name,
             "file_url": f"/files/{final_file_name}",
             "attached_to_doctype": sales_invoice_doctype,
             "attached_to_name": invoice_name,
             "is_private": 0
         })
 
-        file_doc.insert(ignore_permissions=True)
+            file_doc.insert(ignore_permissions=True)
 
-        frappe.db.commit()
+            frappe.db.commit()
 
-
-        return frappe.utils.get_url(f"/file/{file_doc.file_name}")
+            return frappe.utils.get_url(file_doc.file_url)
 
     except pikepdf.PdfError as e:
         frappe.log_error(frappe.get_traceback(), "PDF Processing Error")

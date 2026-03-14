@@ -477,6 +477,11 @@ class ERPGulfNotification(Notification):
             pdf_a3_url = embed_public_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
             if not pdf_a3_url:
                 frappe.throw("Failed to generate PDF/A-3 file!")
+            frappe.log_error(
+                title="url",
+                message=pdf_a3_url
+            )
+
             ws_doc = frappe.get_single("Whatsapp Saudi")
 
             url = ws_doc.bavatel_file_url
