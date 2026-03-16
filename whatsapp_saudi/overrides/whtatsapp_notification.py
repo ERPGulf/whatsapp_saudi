@@ -477,10 +477,7 @@ class ERPGulfNotification(Notification):
             pdf_a3_url = embed_public_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
             if not pdf_a3_url:
                 frappe.throw("Failed to generate PDF/A-3 file!")
-            frappe.log_error(
-                title="url",
-                message=pdf_a3_url
-            )
+
 
             ws_doc = frappe.get_single("Whatsapp Saudi")
 
@@ -1541,7 +1538,7 @@ def send_bevatel_file_template_message_pdf(doctype, docname, print_format):
         language = "ar"
 
 
-        phone = doc.contact_mobile or doc.contact_phone
+        phone = frappe.db.get_value("Contact", doc.contact_person,"mobile_no")
         if not phone:
             frappe.throw("Customer phone number not found")
 
@@ -1807,7 +1804,7 @@ def send_bevatel_file_template_message_pdf_a3(doctype, docname, print_format):
         language = "ar"
 
 
-        phone = doc.contact_mobile or doc.contact_phone
+        phone = frappe.db.get_value("Contact", doc.contact_person,"mobile_no")
         if not phone:
             frappe.throw("Customer phone number not found")
 
