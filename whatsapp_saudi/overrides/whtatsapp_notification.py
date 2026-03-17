@@ -33,6 +33,8 @@ def normalize_phone(number):
 
 def normalize_phone_bavatel(number):
     phone_number = (number or "").replace("-", "").replace(" ", "")
+    if phone_number.startswith("+"):
+        return phone_number
     if phone_number.startswith("00"):
         phone_number = phone_number[2:]
     elif phone_number.startswith("0"):
@@ -42,7 +44,7 @@ def normalize_phone_bavatel(number):
             phone_number = "966" + phone_number
     if phone_number.startswith("0"):
         phone_number = phone_number[1:]
-    return phone_number
+    return "+" + phone_number
 
 def generate_pdf_base64_from_bytes(pdf_bytes: bytes) -> str:
     return f"data:application/pdf;base64,{base64.b64encode(pdf_bytes).decode()}"
