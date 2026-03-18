@@ -154,6 +154,15 @@ ERPNext → WhatsApp Saudi → Provider Settings
 
 ![WhatsApp Saudi Configuration](assets/rasayel.png)
 
+#### important to note:-
+if you are using geo-fencing, for IPs or countries, you need to exclude meta-whatsapp IPs , following are the IPs as of now, it may change. In case it changes, track the IPs through nginx or apache log
+
+    173.252.64.0/18 1;
+    31.13.24.0/21 1;
+    31.13.64.0/18 1;
+    66.220.144.0/20 1;
+    69.63.176.0/20 1;
+    129.134.0.0/16 1;
 
 ## 🧩 Template Handling System
 Whatsapp Saudi supports dynamic template mapping.

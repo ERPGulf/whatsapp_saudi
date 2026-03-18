@@ -10,10 +10,24 @@ import json
 import base64
 from frappe.utils import now
 import time
+import re
 sales_invoice_doctype="Sales Invoice"
 GTS_PDFA1 = "/GTS_PDFA1"
 
-
+def normalize_phone_bavatel(number):
+    phone_number = (number or "").replace("-", "").replace(" ", "")
+    if phone_number.startswith("+"):
+        return phone_number
+    if phone_number.startswith("00"):
+        phone_number = phone_number[2:]
+    elif phone_number.startswith("0"):
+        if len(phone_number) == 10:
+            phone_number = "966" + phone_number[1:]
+        else:
+            phone_number = "966" + phone_number
+    if phone_number.startswith("0"):
+        phone_number = phone_number[1:]
+    return "+" + phone_number
 @frappe.whitelist()
 def generate_invoice_pdf(invoice, language, letterhead, print_format):
     """Function for generating invoice PDF based on the provided print format, letterhead, and language."""
@@ -440,3 +454,133 @@ def embed_public_file_in_pdf(invoice_name, print_format, letterhead=None, langua
         frappe.throw("Unexpected error while embedding XML into PDF")
 
 
+
+def _send_bevatel_whatsapp(doc, doctype, pdf_url):
+    try:
+        if not pdf_url:
+            frappe.throw("Failed to generate PDF/A-3 file!")
+
+        ws_doc = frappe.get_single("Whatsapp Saudi")
+
+        url = ws_doc.bavatel_file_url
+        api_account_id = ws_doc.account_id
+        api_access_token = ws_doc.access_token
+        inbox_id = ws_doc.inbox_id
+
+        phone = frappe.db.get_value("Contact", doc.contact_person, "mobile_no")
+        if not phone:
+            frappe.throw("Customer phone number not found")
+
+        phone_number = normalize_phone_bavatel(phone)
+
+        notification_list = frappe.get_all(
+            "Notification",
+            filters={
+                "channel": "Whatsapp Saudi",
+                "document_type": doctype,
+                "enabled": 1
+            },
+            fields=["name"],
+            limit=1
+        )
+
+        if not notification_list:
+            frappe.throw("No active WhatsApp Saudi Notification found")
+
+        notification = frappe.get_doc("Notification", notification_list[0].name)
+        message_content = notification.message or ""
+
+        # Extract template name
+        template_match = re.search(r'message_template_id\s*=\s*"([^"]+)"', message_content)
+        template_name = template_match.group(1) if template_match else None
+
+        # Extract language
+        language_match = re.search(r'language\s*=\s*"([^"]+)"', message_content)
+        language = language_match.group(1) if language_match else "ar"
+
+        # Extract variables
+        var_matches = re.findall(r'var\d+\s*=\s*"([^"]*)"', message_content)
+
+        body_variables = []
+        for var in var_matches:
+            rendered_value = frappe.render_template(var.strip(), {"doc": doc})
+            body_variables.append(rendered_value)
+
+        # Prepare payload
+        parameters = {
+            "media": {
+                "link": pdf_url,
+                "type": "DOCUMENT",
+                "filename": f"{doc.name}.pdf"
+            }
+        }
+
+        if body_variables:
+            parameters["body"] = body_variables
+
+        payload = {
+            "inbox_id": inbox_id,
+            "contact": {
+                "phone_number": phone_number
+            },
+            "message": {
+                "template": {
+                    "name": template_name,
+                    "language": language,
+                    "parameters": parameters
+                }
+            }
+        }
+
+        headers = {
+            "api_account_id": api_account_id,
+            "api_access_token": api_access_token,
+            "Content-Type": "application/json"
+        }
+
+        response = requests.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+
+        response_data = response.json()
+
+        if response.status_code in [200, 201]:
+            frappe.get_doc({
+                "doctype": "whatsapp saudi success log",
+                "title": "Message successfully sent",
+                "message": json.dumps(response_data),
+                "to_number": phone_number,
+                "time": now()
+            }).insert(ignore_permissions=True)
+
+            frappe.db.commit()
+
+            return {
+                "status": "success",
+                "phone": phone_number
+            }
+
+        else:
+            frappe.log_error(
+                title="Bevatel WhatsApp API Error",
+                message=json.dumps(response_data)
+            )
+
+            return {
+                "status": "failed",
+                "phone": phone_number,
+                "error": response_data
+            }
+
+    except Exception:
+        frappe.log_error(
+            title="Bevatel WhatsApp Send Failed",
+            message=frappe.get_traceback()
+        )
+        return {
+            "status": "error",
+            "message": "Sending failed"
+        }
