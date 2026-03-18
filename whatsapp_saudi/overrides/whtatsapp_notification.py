@@ -8,14 +8,13 @@ import re
 import base64
 from frappe.utils import now, get_url
 import os
-from whatsapp_saudi.overrides.pdf_a3 import embed_file_in_pdf, send_whatsapp_with_pdf_a3,embed_public_file_in_pdf,bevatel_create_pdf
+from whatsapp_saudi.overrides.pdf_a3 import embed_file_in_pdf, send_whatsapp_with_pdf_a3,embed_public_file_in_pdf,bevatel_create_pdf,_send_bevatel_whatsapp,normalize_phone_bavatel
 from frappe.core.doctype.role.role import get_info_based_on_role, get_user_info
-
+from frappe.utils.jinja import render_template
 ERROR_MESSAGE = "success: false, reason: API access prohibited or incorrect instanceid or token"
 ERROR_MESSAGE1 = "Failed to close conversation"
 Type="application/json"
 Type_pdf="application/pdf"
-
 
 
 def normalize_phone(number):
@@ -30,21 +29,6 @@ def normalize_phone(number):
     if phone_number.startswith("0"):
         phone_number = phone_number[1:]
     return phone_number
-
-def normalize_phone_bavatel(number):
-    phone_number = (number or "").replace("-", "").replace(" ", "")
-    if phone_number.startswith("+"):
-        return phone_number
-    if phone_number.startswith("00"):
-        phone_number = phone_number[2:]
-    elif phone_number.startswith("0"):
-        if len(phone_number) == 10:
-            phone_number = "966" + phone_number[1:]
-        else:
-            phone_number = "966" + phone_number
-    if phone_number.startswith("0"):
-        phone_number = phone_number[1:]
-    return "+" + phone_number
 
 def generate_pdf_base64_from_bytes(pdf_bytes: bytes) -> str:
     return f"data:application/pdf;base64,{base64.b64encode(pdf_bytes).decode()}"
@@ -793,7 +777,7 @@ class ERPGulfNotification(Notification):
             except requests.exceptions.RequestException:
                 frappe.log_error(title='Failed to send notification', message=frappe.get_traceback())
 
-    # ---------- Ultramsg / non-Rasayel: send without PDF ----------
+
     def send_whatsapp_without_pdf(self, doc, context):
         url = frappe.get_doc('Whatsapp Saudi').get('message_url')
         instance = frappe.get_doc('Whatsapp Saudi').get('instance_id')
@@ -850,7 +834,7 @@ class ERPGulfNotification(Notification):
                 results.append({"phone": phoneNumber, "success": False, "error": "request exception"})
         return results
 
-    # ---------- Main send dispatcher ----------
+
     def send(self, doc):
         context = {"doc": doc, "alert": self, "comments": None}
         if doc.get("_comments"):
@@ -869,7 +853,7 @@ class ERPGulfNotification(Notification):
                     if rasayel_api == "Rasayel":
 
 
-                        # enqueue the rasayel file message
+
                         frappe.enqueue(
                             self.rasayel_whatsapp_file_message,
                             queue="long",
@@ -1516,114 +1500,25 @@ def rasayel_whatsapp_file_message_pdfa3(doctype, docname, print_format):
         frappe.log_error(frappe.get_traceback(), "Rasayel File Message Error")
         return {"error": str(e)}
 
-@frappe.whitelist()
-def send_bevatel_file_template_message_pdf(doctype, docname, print_format):
-
-    try:
-        doc = frappe.get_doc(doctype, docname)
-
-        pdf_url = bevatel_create_pdf(doctype, docname, print_format)
-
-
-        if not pdf_url:
-            frappe.throw("Failed to generate PDF/A-3 file!")
-
-        ws_doc = frappe.get_single("Whatsapp Saudi")
-
-        url = ws_doc.bavatel_file_url
-        api_account_id = ws_doc.account_id
-        api_access_token = ws_doc.access_token
-        inbox_id = ws_doc.inbox_id
-
-
-        template_name = "ivoice11"
-        language = "ar"
-
-
-        phone = frappe.db.get_value("Contact", doc.contact_person,"mobile_no")
-        if not phone:
-            frappe.throw("Customer phone number not found")
-
-        phone_number = normalize_phone_bavatel(phone)
 
 
 
-        payload = {
-            "inbox_id": inbox_id,
-            "contact": {
-                "phone_number":phone_number
-            },
-            "message": {
-                "template": {
-                    "name": template_name,
-                    "language": language,
-                    "parameters": {
-                        "media": {
-                            "link": pdf_url,
-                            "type": "DOCUMENT",
-                            "filename": f"{doc.name}.pdf"
-                        }
-                    }
-                }
-            }
-        }
+def parse_notification_message(message):
+    """Parse key="value" pairs from Notification Message field"""
+    config = {}
 
-        headers = {
-            "api_account_id": api_account_id,
-            "api_access_token": api_access_token,
-            "Content-Type": "application/json"
-        }
+    if not message:
+        return config
 
-        response = requests.post(
-            url,
-            headers=headers,
-            json=payload,
-            timeout=30
-        )
+    for line in message.split("\n"):
+        match = re.match(r'(\w+)\s*=\s*"(.*)"', line.strip())
+        if match:
+            key, value = match.groups()
+            config[key] = value
 
-        response_data = response.json()
+    return config
 
-        if response.status_code in [200, 201]:
 
-            frappe.get_doc({
-                "doctype": "whatsapp saudi success log",
-                "title": "Message successfully sent",
-                "message": json.dumps(response_data),
-                "to_number": phone_number,
-                "time": now()
-            }).insert(ignore_permissions=True)
-
-            frappe.db.commit()
-
-            return {
-                "status": "success",
-                "phone": phone_number
-            }
-
-        else:
-
-            frappe.log_error(
-                title="Bevatel WhatsApp API Error",
-                message=json.dumps(response_data)
-            )
-
-            return {
-                "status": "failed",
-                "phone": phone_number,
-                "error": response_data
-            }
-
-    except Exception:
-
-        frappe.log_error(
-            title="Bevatel Configuration Error",
-            message=frappe.get_traceback()
-        )
-
-        return {
-            "status": "error",
-            "message": "Configuration error occurred"
-        }
 
 
 @frappe.whitelist()
@@ -1784,113 +1679,44 @@ def rasayel_whatsapp_file_message_pdfa3(doctype, docname, print_format):
         return {"error": str(e)}
 
 @frappe.whitelist()
-def send_bevatel_file_template_message_pdf_a3(doctype, docname, print_format):
-
+def send_bevatel_file_template_message_pdf(doctype, docname, print_format):
     try:
         doc = frappe.get_doc(doctype, docname)
 
-        pdf_a3_url = embed_public_file_in_pdf(docname, print_format, letterhead=None, language="en")
+        pdf_url = bevatel_create_pdf(doctype, docname, print_format)
 
-        if not pdf_a3_url:
-            frappe.throw("Failed to generate PDF/A-3 file!")
-
-        ws_doc = frappe.get_single("Whatsapp Saudi")
-
-        url = ws_doc.bavatel_file_url
-        api_account_id = ws_doc.account_id
-        api_access_token = ws_doc.access_token
-        inbox_id = ws_doc.inbox_id
-
-
-        template_name = "ivoice11"
-        language = "ar"
-
-
-        phone = frappe.db.get_value("Contact", doc.contact_person,"mobile_no")
-        if not phone:
-            frappe.throw("Customer phone number not found")
-
-        phone_number = normalize_phone_bavatel(phone)
-
-
-
-        payload = {
-            "inbox_id": inbox_id,
-            "contact": {
-                "phone_number":phone_number
-            },
-            "message": {
-                "template": {
-                    "name": template_name,
-                    "language": language,
-                    "parameters": {
-                        "media": {
-                            "link": pdf_a3_url,
-                            "type": "DOCUMENT",
-                            "filename": f"{doc.name}.pdf"
-                        }
-                    }
-                }
-            }
-        }
-
-        headers = {
-            "api_account_id": api_account_id,
-            "api_access_token": api_access_token,
-            "Content-Type": "application/json"
-        }
-
-        response = requests.post(
-            url,
-            headers=headers,
-            json=payload,
-            timeout=30
-        )
-
-        response_data = response.json()
-
-        if response.status_code in [200, 201]:
-
-            frappe.get_doc({
-                "doctype": "whatsapp saudi success log",
-                "title": "Message successfully sent",
-                "message": json.dumps(response_data),
-                "to_number": phone_number,
-                "time": now()
-            }).insert(ignore_permissions=True)
-
-            frappe.db.commit()
-
-            return {
-                "status": "success",
-                "phone": phone_number
-            }
-
-        else:
-
-            frappe.log_error(
-                title="Bevatel WhatsApp API Error",
-                message=json.dumps(response_data)
-            )
-
-            return {
-                "status": "failed",
-                "phone": phone_number,
-                "error": response_data
-            }
+        return _send_bevatel_whatsapp(doc, doctype, pdf_url)
 
     except Exception:
-
         frappe.log_error(
             title="Bevatel Configuration Error",
             message=frappe.get_traceback()
         )
-
         return {
             "status": "error",
             "message": "Configuration error occurred"
         }
 
+@frappe.whitelist()
+def send_bevatel_file_template_message_pdf_a3(doctype, docname, print_format):
+    try:
+        doc = frappe.get_doc(doctype, docname)
+
+        pdf_url = embed_public_file_in_pdf(
+            docname, print_format, letterhead=None, language="en"
+        )
+
+        return _send_bevatel_whatsapp(doc, doctype, pdf_url)
+
+    except Exception:
+        frappe.log_error(
+            title="Bevatel Configuration Error",
+            message=frappe.get_traceback()
+        )
+        return {
+            "status": "error",
+            "message": "Configuration error occurred"
+        }
 
 @frappe.whitelist()
 def get_whatsapp_pdf(message, docname, doctype, print_format):
