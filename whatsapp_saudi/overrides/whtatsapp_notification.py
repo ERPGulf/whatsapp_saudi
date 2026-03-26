@@ -620,7 +620,7 @@ class ERPGulfNotification(Notification):
             frappe.log_error(title="Bevatel Configuration Error", message=frappe.get_traceback())
             return {"status": "error", "message": "Configuration or unexpected error occurred. Check error logs."}
 
-    #
+
     @frappe.whitelist()
     def send_whatsapp_with_pdf(self, doc: object, context: dict):
         pdf_a3_path = embed_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
