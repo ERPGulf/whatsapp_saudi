@@ -41,17 +41,17 @@ function generateAndSendPDF(frm, title, method) {
                     docname: frm.doc.name,
                     doctype: "Sales Invoice",
                     print_format: values.print_format,
-                    letterhead: values.letterhead,
+                    letterhead: values.letterhead || null,
                     language: values.language
                 },
                 freeze: true,
                 freeze_message: __("Generating PDF & Sending WhatsApp message..."),
                 callback: function (response) {
                     const res = response.message;
-                    if (res && res.status === "success") {
-                        frappe.msgprint(__('PDF Generated & WhatsApp message sent successfully!'));
+                    if (res && res.success) {
+                        frappe.msgprint(__(res.message || 'WhatsApp message sent successfully!'));
                     } else {
-                        frappe.msgprint(__('Failed to send WhatsApp message.'));
+                        frappe.msgprint(__(res?.message || 'Failed to send WhatsApp message.'));
                     }
                 }
             });
