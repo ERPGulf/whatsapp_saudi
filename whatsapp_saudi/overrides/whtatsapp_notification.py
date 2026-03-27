@@ -22,6 +22,10 @@ from frappe.utils.jinja import render_template
 
 ERROR_MESSAGE = "success: false, reason: API access prohibited or incorrect instanceid or token"
 ERROR_MESSAGE1 = "Failed to close conversation"
+ERROR_MESSAGE2 = "Failed to generate PDF/A-3 file!"
+ERROR_MESSAGE3 = "WhatsApp File Message sent successfully"
+ERROR_MESSAGE4 = "Bevatel Configuration Error"
+ERROR_MESSAGE5 = "Document is cancelled"
 Type = "application/json"
 Type_pdf = "application/pdf"
 
@@ -150,7 +154,7 @@ class ERPGulfNotification(Notification):
         pdf_a3_path = embed_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
         if not pdf_a3_path:
             # FIX: Wrapped user-facing string in _()
-            frappe.throw(_("Failed to generate PDF/A-3 file!"))
+            frappe.throw(_(ERROR_MESSAGE2))
 
         # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
         # Audited: pdf_a3_path comes from embed_file_in_pdf which constructs path from
@@ -315,7 +319,7 @@ class ERPGulfNotification(Notification):
                     return {
                         "success": True,
                         "conversation_id": conversation_id,
-                        "message": "WhatsApp File Message sent successfully",
+                        "message": ERROR_MESSAGE3,
                     }
 
                 return {"error": "Send failed", "raw": response_json}
@@ -441,7 +445,7 @@ class ERPGulfNotification(Notification):
             pdf_a3_url = embed_public_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
             if not pdf_a3_url:
                 # FIX: Wrapped user-facing string in _()
-                frappe.throw(_("Failed to generate PDF/A-3 file!"))
+                frappe.throw(_(ERROR_MESSAGE2))
 
             ws_doc = frappe.get_single("Whatsapp Saudi")
             url = ws_doc.bavatel_file_url
@@ -532,7 +536,7 @@ class ERPGulfNotification(Notification):
             return results
 
         except Exception:
-            frappe.log_error(title="Bevatel Configuration Error", message=frappe.get_traceback())
+            frappe.log_error(title= ERROR_MESSAGE4, message=frappe.get_traceback())
             return {"status": "error", "message": "Configuration error occurred"}
 
     def send_bevatel_template_message(self, doc, context):
@@ -617,7 +621,7 @@ class ERPGulfNotification(Notification):
             return results
 
         except Exception:
-            frappe.log_error(title="Bevatel Configuration Error", message=frappe.get_traceback())
+            frappe.log_error(title= ERROR_MESSAGE4, message=frappe.get_traceback())
             return {"status": "error", "message": "Configuration or unexpected error occurred. Check error logs."}
 
 
@@ -626,7 +630,7 @@ class ERPGulfNotification(Notification):
         pdf_a3_path = embed_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
         if not pdf_a3_path:
 
-            frappe.throw(_("Failed to generate PDF/A-3 file!"))
+            frappe.throw(_(ERROR_MESSAGE2))
 
         # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
         # Audited: pdf_a3_path comes from embed_file_in_pdf which constructs path from
@@ -875,8 +879,8 @@ def send_whatsapp_with_pdf1(message: str, docname: str, doctype: str, print_form
     sales_invoice = frappe.get_doc("Sales Invoice", docname)
     if sales_invoice.get("docstatus") == 2:
         # FIX: Wrapped user-facing string in _()
-        frappe.throw(_("Document is cancelled"))
-        return {"status": "error", "message": "Document is cancelled."}
+        frappe.throw(_(ERROR_MESSAGE5))
+        return {"status": "error", "message":ERROR_MESSAGE5}
 
     customer = sales_invoice.get("customer")
     customer_doc = frappe.get_doc("Customer", customer)
@@ -1023,7 +1027,7 @@ def upload_file_pdf(doctype: str, docname: str, print_format: str):
     invoice = frappe.get_doc("Sales Invoice", docname)
     if invoice.docstatus == 2:
 
-        frappe.throw(_("Document is cancelled"))
+        frappe.throw(_(ERROR_MESSAGE5))
 
     whatsapp_conf = frappe.get_doc("Whatsapp Saudi")
     try:
@@ -1077,7 +1081,7 @@ def rasayel_whatsapp_file_message_pdf(doctype: str, docname: str, print_format: 
         sales_invoice = frappe.get_doc("Sales Invoice", docname)
         if sales_invoice.docstatus == 2:
 
-            frappe.throw(_("Document is cancelled"))
+            frappe.throw(_(ERROR_MESSAGE5))
 
         customer = sales_invoice.customer
         customer_doc = frappe.get_doc("Customer", customer)
@@ -1154,7 +1158,7 @@ def rasayel_whatsapp_file_message_pdf(doctype: str, docname: str, print_format: 
         except Exception:
             frappe.log_error(frappe.get_traceback(), ERROR_MESSAGE1)
 
-        return {"success": True, "conversation_id": conversation_id, "message": "WhatsApp File Message sent successfully"}
+        return {"success": True, "conversation_id": conversation_id, "message": ERROR_MESSAGE3}
 
     except Exception:
         frappe.log_error(
@@ -1173,7 +1177,7 @@ def upload_file_pdfa3(doctype, docname, print_format):
 
     if not pdf_a3_path:
 
-        frappe.throw(_("Failed to generate PDF/A-3 file!"))
+        frappe.throw(_(ERROR_MESSAGE2))
 
     # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
     # Audited: pdf_a3_path comes from embed_file_in_pdf which constructs path from
@@ -1200,7 +1204,7 @@ def upload_file_pdfa3(doctype, docname, print_format):
     invoice = frappe.get_doc("Sales Invoice", docname)
     if invoice.docstatus == 2:
         # FIX: Wrapped user-facing string in _()
-        frappe.throw(_("Document is cancelled"))
+        frappe.throw(_(ERROR_MESSAGE5))
 
     whatsapp_conf = frappe.get_doc("Whatsapp Saudi")
 
@@ -1256,7 +1260,7 @@ def _rasayel_send_pdfa3(doctype: str, docname: str, print_format: str):
     sales_invoice = frappe.get_doc("Sales Invoice", docname)
     if sales_invoice.docstatus == 2:
         # FIX: Wrapped user-facing string in _()
-        frappe.throw(_("Document is cancelled"))
+        frappe.throw(_(ERROR_MESSAGE5))
 
     customer = sales_invoice.customer
     customer_doc = frappe.get_doc("Customer", customer)
@@ -1333,7 +1337,7 @@ def _rasayel_send_pdfa3(doctype: str, docname: str, print_format: str):
     except Exception:
         frappe.log_error(frappe.get_traceback(), ERROR_MESSAGE1)
 
-    return {"success": True, "conversation_id": conversation_id, "message": "WhatsApp File Message sent successfully"}
+    return {"success": True, "conversation_id": conversation_id, "message": ERROR_MESSAGE3}
 
 
 def parse_notification_message(message):
@@ -1368,7 +1372,7 @@ def send_bevatel_file_template_message_pdf(doctype: str, docname: str, print_for
         pdf_url = bevatel_create_pdf(doctype, docname, print_format)
         return _send_bevatel_whatsapp(doc, doctype, pdf_url)
     except Exception:
-        frappe.log_error(title="Bevatel Configuration Error", message=frappe.get_traceback())
+        frappe.log_error(title= ERROR_MESSAGE4, message=frappe.get_traceback())
         return {"status": "error", "message": "Configuration error occurred"}
 
 
@@ -1380,7 +1384,7 @@ def send_bevatel_file_template_message_pdf_a3(doctype: str, docname: str, print_
         pdf_url = embed_public_file_in_pdf(docname, print_format, letterhead=None, language="en")
         return _send_bevatel_whatsapp(doc, doctype, pdf_url)
     except Exception:
-        frappe.log_error(title="Bevatel Configuration Error", message=frappe.get_traceback())
+        frappe.log_error(title= ERROR_MESSAGE4, message=frappe.get_traceback())
         return {"status": "error", "message": "Configuration error occurred"}
 
 

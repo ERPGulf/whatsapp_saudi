@@ -15,7 +15,8 @@ import re
 
 sales_invoice_doctype = "Sales Invoice"
 GTS_PDFA1 = "/GTS_PDFA1"
-
+DOCNAME = "Whatsapp Saudi"
+TITTLE = "Message successfully sent"
 
 def normalize_phone_bavatel(number):
     phone_number = (number or "").replace("-", "").replace(" ", "")
@@ -61,7 +62,7 @@ def generate_invoice_pdf(invoice: str, language: str, letterhead: str, print_for
 
 def embed_file_in_pdf_1(input_pdf, xml_file, output_pdf):
     """embed the pdf file"""
-    app_path = frappe.get_app_path("Whatsapp Saudi")
+    app_path = frappe.get_app_path(DOCNAME)
     icc_path = app_path + "/sRGB.icc"
 
     with pikepdf.open(input_pdf, allow_overwriting_input=True) as pdf:
@@ -279,7 +280,7 @@ def send_whatsapp_with_pdf_a3(message: str, docname: str,doctype: str, print_for
 
         in_memory_url = f"data:application/pdf;base64,{pdf_base64}"
 
-        whatsapp_config = frappe.get_doc("Whatsapp Saudi")
+        whatsapp_config = frappe.get_doc(DOCNAME)
         sales_invoice = frappe.get_doc(sales_invoice_doctype, docname)
 
         if sales_invoice.get("docstatus") == 2:
@@ -320,13 +321,13 @@ def send_whatsapp_with_pdf_a3(message: str, docname: str,doctype: str, print_for
                 current_time = now()
                 frappe.get_doc({
                     "doctype": "whatsapp saudi success log",
-                    "title": "Message successfully sent",
+                    "title": TITTLE,
                     "message": message,
                     "to_number": phonenumber,
                     "time": current_time,
                 }).insert(ignore_permissions=True)
 
-                return {"success": True, "message": "Message successfully sent"}
+                return {"success": True, "message": TITTLE}
             else:
                 frappe.log_error("Failed to send WhatsApp message", frappe.get_traceback())
                 return {"success": False, "message": "API access prohibited or incorrect credentials"}
@@ -466,7 +467,7 @@ def _send_bevatel_whatsapp(doc, doctype, pdf_url):
             # FIX 3: Wrapped user-facing string in _()
             frappe.throw(_("Failed to generate PDF/A-3 file!"))
 
-        ws_doc = frappe.get_single("Whatsapp Saudi")
+        ws_doc = frappe.get_single(DOCNAME)
 
         url = ws_doc.bavatel_file_url
         api_account_id = ws_doc.account_id
@@ -483,7 +484,7 @@ def _send_bevatel_whatsapp(doc, doctype, pdf_url):
         notification_list = frappe.get_all(
             "Notification",
             filters={
-                "channel": "Whatsapp Saudi",
+                "channel": DOCNAME,
                 "document_type": doctype,
                 "enabled": 1,
             },
@@ -552,7 +553,7 @@ def _send_bevatel_whatsapp(doc, doctype, pdf_url):
         if response.status_code in [200, 201]:
             frappe.get_doc({
                 "doctype": "whatsapp saudi success log",
-                "title": "Message successfully sent",
+                "title": TITTLE,
                 "message": json.dumps(response_data),
                 "to_number": phone_number,
                 "time": now(),
