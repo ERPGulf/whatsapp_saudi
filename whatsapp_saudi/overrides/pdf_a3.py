@@ -33,7 +33,7 @@ def normalize_phone_bavatel(number):
         phone_number = phone_number[1:]
     return "+" + phone_number
 @frappe.whitelist()
-def generate_invoice_pdf(invoice: str, language: str, letterhead: str, print_format: str):
+def generate_invoice_pdf(invoice: str, language: str,letterhead: str | None, print_format: str):
     """Function for generating invoice PDF based on the provided print format, letterhead, and language."""
     invoice_name = invoice if isinstance(invoice, str) else invoice.name
 
@@ -216,7 +216,7 @@ def embed_file_in_pdf(invoice_name: str, print_format: str, letterhead: str, lan
             )
 
         input_pdf = generate_invoice_pdf(
-            invoice_number.name,  # pass name string, not doc object — avoids pydantic type error
+            invoice_name,  # pass name string, not doc object — avoids pydantic type error
             language=language,
             letterhead=letterhead,
             print_format=print_format,
@@ -284,7 +284,6 @@ def send_whatsapp_with_pdf_a3(message: str, docname: str,doctype: str, print_for
         sales_invoice = frappe.get_doc(sales_invoice_doctype, docname)
 
         if sales_invoice.get("docstatus") == 2:
-            # FIX 3: Wrapped user-facing string in _()
             frappe.throw(_("Document is cancelled"))
 
         customer = sales_invoice.get("customer")
@@ -358,6 +357,7 @@ def get_receiver_phone_number(number):
 @frappe.whitelist()
 def bevatel_create_pdf(doctype: str, docname: str, print_format: str):
     pdf = frappe.get_print(doctype, docname, print_format, as_pdf=True)
+    frappe.log_error(title="log3", message="entered")
 
     file_doc = frappe.get_doc({
         "doctype": "File",
@@ -410,9 +410,9 @@ def embed_public_file_in_pdf(invoice_name: str, print_format: str, letterhead: s
             )
 
         input_pdf = generate_invoice_pdf(
-            invoice_number,
+            invoice_name,  # pass name string, not doc object — avoids pydantic type error
             language=language,
-            letterhead=letterhead,
+             letterhead=letterhead or None,
             print_format=print_format,
         )
 
@@ -498,7 +498,7 @@ def _send_bevatel_whatsapp(doc, doctype, pdf_url):
 
         notification = frappe.get_doc("Notification", notification_list[0].name)
         message_content = notification.message or ""
-
+        frappe.log_error(title="log4", message=message_content)
         # Extract template name
         template_match = re.search(r'message_template_id\s*=\s*"([^"]+)"', message_content)
         template_name = template_match.group(1) if template_match else None

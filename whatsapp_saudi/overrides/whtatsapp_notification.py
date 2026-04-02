@@ -36,7 +36,36 @@ Doctype_success_log = "whatsapp saudi success log"
 Type = "application/json"
 Type_pdf = "application/pdf"
 
+def log_bevatel_response(response, response_data, phone_number, title1, Doctype_success_log, results):
+    """
+    Log Bevatel WhatsApp API response and append result status.
+    """
 
+    if response.status_code in [200, 201]:
+        frappe.get_doc({
+            "doctype": Doctype_success_log,
+            "title":Tittle1,
+            "message": json.dumps(response_data),
+            "to_number": phone_number,
+            "time": now(),
+        }).insert(ignore_permissions=True)
+
+        results.append({
+            "status": "success",
+            "phone": phone_number
+        })
+
+    else:
+        frappe.log_error(
+            title="Bevatel WhatsApp API Error",
+            message=json.dumps(response_data),
+        )
+
+        results.append({
+            "status": "failed",
+            "phone": phone_number,
+            "error": response_data
+        })
 def normalize_phone(number):
     phone_number = (number or "").replace("+", "").replace("-", "").replace(" ", "")
     if phone_number.startswith("00"):
@@ -312,7 +341,7 @@ class ERPGulfNotification(Notification):
                 if conversation_id:
                     frappe.get_doc({
                         "doctype": Doctype_success_log,
-                        "title": title1,
+                        "title":Tittle1,
                         "message": conversation_id,
                         "to_number": phoneNumber,
                         "time": now(),
@@ -404,7 +433,7 @@ class ERPGulfNotification(Notification):
                     if message_id and conversation_id:
                         frappe.get_doc({
                             "doctype": Doctype_success_log,
-                            "title": title1,
+                            "title": Tittle1,
                             "message": message_id,
                             "to_number": phone_number,
                             "time": now(),
@@ -517,21 +546,14 @@ class ERPGulfNotification(Notification):
                     response = requests.post(url, headers=headers, json=payload, timeout=30)
                     response_data = response.json()
 
-                    if response.status_code in [200, 201]:
-                        frappe.get_doc({
-                            "doctype": Doctype_success_log,
-                            "title": title1,
-                            "message": json.dumps(response_data),
-                            "to_number": phone_number,
-                            "time": now(),
-                        }).insert(ignore_permissions=True)
-                        results.append({"status": "success", "phone": phone_number})
-                    else:
-                        frappe.log_error(
-                            title="Bevatel WhatsApp API Error",
-                            message=json.dumps(response_data),
-                        )
-                        results.append({"status": "failed", "phone": phone_number, "error": response_data})
+                    log_bevatel_response(
+                        response=response,
+                        response_data=response_data,
+                        phone_number=phone_number,
+                        title1=Tittle1,
+                        Doctype_success_log=Doctype_success_log,
+                        results=results
+                    )
 
                 except Exception:
                     frappe.log_error(
@@ -602,22 +624,14 @@ class ERPGulfNotification(Notification):
                     response = requests.post(url, headers=headers, json=payload, timeout=30)
                     response_data = response.json()
 
-                    if response.status_code in [200, 201]:
-                        frappe.get_doc({
-                            "doctype": Doctype_success_log,
-                            "title": title1,
-                            "message": json.dumps(response_data),
-                            "to_number": phone_number,
-                            "time": now(),
-                        }).insert(ignore_permissions=True)
-                        results.append({"status": "success", "phone": phone_number})
-                    else:
-                        frappe.log_error(
-                            title="Bevatel WhatsApp API Error",
-                            message=json.dumps(response_data),
-                        )
-                        results.append({"status": "failed", "phone": phone_number, "error": response_data})
-
+                    log_bevatel_response(
+                        response=response,
+                        response_data=response_data,
+                        phone_number=phone_number,
+                        title1=Tittle1,
+                        Doctype_success_log=Doctype_success_log,
+                        results=results
+                    )
                 except Exception:
                     frappe.log_error(
                         title="Bevatel WhatsApp Send Failed",
@@ -676,7 +690,7 @@ class ERPGulfNotification(Notification):
                     if response_dict.get("sent") and response_dict.get("id"):
                         frappe.get_doc({
                             "doctype": Doctype_success_log,
-                            "title": title1,
+                            "title":Tittle1,
                             "message": msg1,
                             "to_number": phoneNumber,
                             "time": now(),
@@ -724,7 +738,7 @@ class ERPGulfNotification(Notification):
                         current_time = now()
                         frappe.get_doc({
                             "doctype": Doctype_success_log,
-                            "title": title1,
+                            "title": Tittle1,
                             "message": msg1,
                             "to_number": phoneNumber,
                             "time": current_time,
@@ -923,13 +937,13 @@ def send_whatsapp_with_pdf1(message: str, docname: str, doctype: str, print_form
                 current_time = now()
                 frappe.get_doc({
                     "doctype": Doctype_success_log,
-                    "title": title1,
+                    "title": Tittle1,
                     "message": message,
                     "to_number": phonenumber,
                     "time": current_time,
                 }).insert(ignore_permissions=True)
                 response_dict["success"] = True
-                response_dict["message"] = title1
+                response_dict["message"] = Tittle1
             else:
                 frappe.log_error(ERROR_MESSAGE, frappe.get_traceback())
                 return {"status": "error", "message": "Failed to send message, check API access."}
@@ -1154,7 +1168,7 @@ def rasayel_whatsapp_file_message_pdf(doctype: str, docname: str, print_format: 
 
         frappe.get_doc({
             "doctype": Doctype_success_log,
-            "title": title1,
+            "title":Tittle1,
             "message": conversation_id,
             "to_number": phone_number,
             "time": now(),
@@ -1333,7 +1347,7 @@ def _rasayel_send_pdfa3(doctype: str, docname: str, print_format: str):
 
     frappe.get_doc({
         "doctype": Doctype_success_log,
-        "title": title1,
+        "title": Tittle1,
         "message": conversation_id,
         "to_number": phone_number,
         "time": now(),
@@ -1376,8 +1390,10 @@ def rasayel_whatsapp_file_message_pdfa3(doctype: str, docname: str, print_format
 def send_bevatel_file_template_message_pdf(doctype: str, docname: str, print_format: str):
     try:
         doc = frappe.get_doc(doctype, docname)
+        frappe.log_error(title="log2", message="entered")
         pdf_url = bevatel_create_pdf(doctype, docname, print_format)
         return _send_bevatel_whatsapp(doc, doctype, pdf_url)
+
     except Exception:
         frappe.log_error(title= ERROR_MESSAGE4, message=frappe.get_traceback())
         return {"status": "error", "message": ERROR_MESSAGE6}
@@ -1404,6 +1420,7 @@ def get_whatsapp_pdf(message: str, docname: str, doctype: str, print_format: str
         if provider == "Rasayel":
             return rasayel_whatsapp_file_message_pdf(doctype, docname, print_format)
         elif provider == "Bevatel":
+            frappe.log_error(title="log1", message="entered")
             return send_bevatel_file_template_message_pdf(doctype, docname, print_format)
         else:
             return send_whatsapp_with_pdf1(message, docname, doctype, print_format)
@@ -1423,6 +1440,7 @@ def get_whatsapp_pdf_a3(message: str, docname: str, doctype: str, print_format: 
         if provider == "Rasayel":
             return rasayel_whatsapp_file_message_pdfa3(doctype, docname, print_format)
         elif provider == "Bevatel":
+
             return send_bevatel_file_template_message_pdf_a3(doctype, docname, print_format)
         else:
             return send_whatsapp_with_pdf_a3(message, docname, doctype, print_format,letterhead)
@@ -1464,7 +1482,7 @@ def send_whatsapp_text(message: str, phone: str):
             if response_dict.get("sent"):
                 frappe.get_doc({
                     "doctype": Doctype_success_log,
-                    "title": title1,
+                    "title": Tittle1,
                     "message": message,
                     "to_number": phone,
                     "time": now(),
