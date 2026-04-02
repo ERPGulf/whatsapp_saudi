@@ -180,7 +180,7 @@ def embed_file_in_pdf_1(input_pdf, xml_file, output_pdf):
 
 # FIX 1: Added type hints to all arguments
 @frappe.whitelist(allow_guest=False)
-def embed_file_in_pdf(invoice_name: str, print_format: str, letterhead: str, language: str):
+def embed_file_in_pdf(invoice_name: str, print_format: str, letterhead: str | None, language: str):
     """
     Embed XML into a PDF using pikepdf.
     """

@@ -147,23 +147,43 @@ def upload_file_pdf(docname):
 
     whatsapp_conf = frappe.get_doc("Whatsapp Saudi")
     url = whatsapp_conf.file_upload
-    token = whatsapp_conf.raseyel_authorization_token
 
     if not memory_url:
+        frappe.log_error("MEMORY URL EMPTY", str(memory_url))
         return {"error": "PDF not generated"}
 
+    # ✅ Decode Base64 PDF
     try:
         _, encoded = memory_url.split(",", 1)
         file_content = base64.b64decode(encoded)
     except Exception:
+        frappe.log_error("PDF DECODE FAILED", memory_url)
         return {"error": "PDF decode failed"}
 
+    # ✅ File validation
+    file_size = len(file_content)
+    frappe.log_error("FILE SIZE CHECK", f"{file_size} bytes")
+
+    if file_size == 0:
+        return {"error": "Generated PDF is empty"}
+
+    # ✅ Prepare file
     files = {
         'file': (f"{docname}.pdf", file_content, "application/pdf")
     }
 
     try:
-        response = requests.post(url, headers={"Authorization": token}, files=files)
+        whatsapp_conf = frappe.get_doc("Whatsapp Saudi")
+        url = whatsapp_conf.file_upload
+        token = whatsapp_conf.raseyel_authorization_token
+        token = token.split("\n")[0].strip()
+        if token.startswith("Basic "):
+            token = token.replace("Basic ", "").strip()
+
+        headers = {
+            "Authorization": f"Basic {token}"
+        }
+        response = requests.post(url, headers=headers, files=files)
         try:
             return response.json()
         except:
@@ -180,9 +200,11 @@ def rasayel_whatsapp_file_message_pdf(docname):
     try:
         upload_response = upload_file_pdf(docname)
         if not upload_response or "error" in upload_response:
+            frappe.log_error("no upload",upload_response)
             return upload_response
 
         blob_id = upload_response.get("attachment", {}).get("id")
+        frappe.log_error("blob_id",blob_id)
         if not blob_id:
             return {"error": "Blob ID not found", "upload_response": upload_response}
 
@@ -230,7 +252,6 @@ def rasayel_whatsapp_file_message_pdf(docname):
             },
             data=json.dumps(payload)
         )
-
         if response.status_code != 200:
             frappe.log_error("Rasayel error", response.text)
             return {"error": "API error", "raw": response.text}

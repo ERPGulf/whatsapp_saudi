@@ -36,36 +36,46 @@ Doctype_success_log = "whatsapp saudi success log"
 Type = "application/json"
 Type_pdf = "application/pdf"
 
-def log_bevatel_response(response, response_data, phone_number, title1, Doctype_success_log, results):
+
+def log_whatsapp_success(message, phone_number):
+    """
+    Insert a success record into the WhatsApp Saudi success log doctype.
+
+    Args:
+        message: The message content or conversation/message ID to log.
+        phone_number: The recipient's phone number.
+    """
+    frappe.get_doc({
+        "doctype": Doctype_success_log,
+        "title": Tittle1,
+        "message": message,
+        "to_number": phone_number,
+        "time": now(),
+    }).insert(ignore_permissions=True)
+
+
+def log_bevatel_response(response, response_data, phone_number,Tittle1, Doctype_success_log, results):
     """
     Log Bevatel WhatsApp API response and append result status.
     """
-
     if response.status_code in [200, 201]:
-        frappe.get_doc({
-            "doctype": Doctype_success_log,
-            "title":Tittle1,
-            "message": json.dumps(response_data),
-            "to_number": phone_number,
-            "time": now(),
-        }).insert(ignore_permissions=True)
-
+        log_whatsapp_success(json.dumps(response_data), phone_number)
         results.append({
             "status": "success",
             "phone": phone_number
         })
-
     else:
         frappe.log_error(
             title="Bevatel WhatsApp API Error",
             message=json.dumps(response_data),
         )
-
         results.append({
             "status": "failed",
             "phone": phone_number,
             "error": response_data
         })
+
+
 def normalize_phone(number):
     phone_number = (number or "").replace("+", "").replace("-", "").replace(" ", "")
     if phone_number.startswith("00"):
@@ -189,7 +199,6 @@ class ERPGulfNotification(Notification):
     def upload_file(self, doc, context):
         pdf_a3_path = embed_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
         if not pdf_a3_path:
-            # FIX: Wrapped user-facing string in _()
             frappe.throw(_(ERROR_MESSAGE2))
 
         # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
@@ -339,13 +348,7 @@ class ERPGulfNotification(Notification):
                 )
 
                 if conversation_id:
-                    frappe.get_doc({
-                        "doctype": Doctype_success_log,
-                        "title":Tittle1,
-                        "message": conversation_id,
-                        "to_number": phoneNumber,
-                        "time": now(),
-                    }).insert(ignore_permissions=True)
+                    log_whatsapp_success(conversation_id, phoneNumber)
 
                     try:
                         close_conversation(conversation_id)
@@ -431,13 +434,7 @@ class ERPGulfNotification(Notification):
                     )
 
                     if message_id and conversation_id:
-                        frappe.get_doc({
-                            "doctype": Doctype_success_log,
-                            "title": Tittle1,
-                            "message": message_id,
-                            "to_number": phone_number,
-                            "time": now(),
-                        }).insert(ignore_permissions=True)
+                        log_whatsapp_success(message_id, phone_number)
 
                         try:
                             close_conversation(conversation_id)
@@ -480,7 +477,6 @@ class ERPGulfNotification(Notification):
         try:
             pdf_a3_url = embed_public_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
             if not pdf_a3_url:
-                # FIX: Wrapped user-facing string in _()
                 frappe.throw(_(ERROR_MESSAGE2))
 
             ws_doc = frappe.get_single(DOCNAME)
@@ -565,7 +561,7 @@ class ERPGulfNotification(Notification):
             return results
 
         except Exception:
-            frappe.log_error(title= ERROR_MESSAGE4, message=frappe.get_traceback())
+            frappe.log_error(title=ERROR_MESSAGE4, message=frappe.get_traceback())
             return {"status": "error", "message": ERROR_MESSAGE6}
 
     def send_bevatel_template_message(self, doc, context):
@@ -642,15 +638,13 @@ class ERPGulfNotification(Notification):
             return results
 
         except Exception:
-            frappe.log_error(title= ERROR_MESSAGE4, message=frappe.get_traceback())
+            frappe.log_error(title=ERROR_MESSAGE4, message=frappe.get_traceback())
             return {"status": "error", "message": "Configuration or unexpected error occurred. Check error logs."}
-
 
     @frappe.whitelist()
     def send_whatsapp_with_pdf(self, doc: object, context: dict):
         pdf_a3_path = embed_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
         if not pdf_a3_path:
-
             frappe.throw(_(ERROR_MESSAGE2))
 
         # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
@@ -688,13 +682,7 @@ class ERPGulfNotification(Notification):
                 if response.status_code == 200:
                     response_dict = json.loads(response_json)
                     if response_dict.get("sent") and response_dict.get("id"):
-                        frappe.get_doc({
-                            "doctype": Doctype_success_log,
-                            "title":Tittle1,
-                            "message": msg1,
-                            "to_number": phoneNumber,
-                            "time": now(),
-                        }).insert()
+                        log_whatsapp_success(msg1, phoneNumber)
                     else:
                         frappe.log_error(
                             title="API Error",
@@ -735,18 +723,11 @@ class ERPGulfNotification(Notification):
                 if response.status_code == 200:
                     response_dict = json.loads(response_json)
                     if response_dict.get("sent") and response_dict.get("id"):
-                        current_time = now()
-                        frappe.get_doc({
-                            "doctype": Doctype_success_log,
-                            "title": Tittle1,
-                            "message": msg1,
-                            "to_number": phoneNumber,
-                            "time": current_time,
-                        }).insert()
+                        log_whatsapp_success(msg1, phoneNumber)
                         results.append({"phone": phoneNumber, "success": True})
                     else:
                         frappe.log_error(
-                            title= ERROR_MESSAGE8,
+                            title=ERROR_MESSAGE8,
                             message=json.dumps({"invoice": doc.name, "response": response_json}, indent=2),
                         )
                         results.append({"phone": phoneNumber, "success": False, "raw": response_json})
@@ -755,7 +736,7 @@ class ERPGulfNotification(Notification):
                     results.append({"phone": phoneNumber, "success": False, "status_code": response.status_code})
             except requests.exceptions.RequestException:
                 frappe.log_error(
-                    title= ERROR_MESSAGE8,
+                    title=ERROR_MESSAGE8,
                     message=json.dumps({"invoice": doc.name, "response": response_json}, indent=2),
                 )
                 results.append({"phone": phoneNumber, "success": False, "error": "request exception"})
@@ -899,9 +880,8 @@ def send_whatsapp_with_pdf1(message: str, docname: str, doctype: str, print_form
     whatsapp_config = frappe.get_doc(DOCNAME)
     sales_invoice = frappe.get_doc("Sales Invoice", docname)
     if sales_invoice.get("docstatus") == 2:
-        # FIX: Wrapped user-facing string in _()
         frappe.throw(_(ERROR_MESSAGE5))
-        return {"status": "error", "message":ERROR_MESSAGE5}
+        return {"status": "error", "message": ERROR_MESSAGE5}
 
     customer = sales_invoice.get("customer")
     customer_doc = frappe.get_doc("Customer", customer)
@@ -934,14 +914,7 @@ def send_whatsapp_with_pdf1(message: str, docname: str, doctype: str, print_form
         if response.status_code == 200:
             response_dict = json.loads(response_json)
             if response_dict.get("sent") and response_dict.get("id"):
-                current_time = now()
-                frappe.get_doc({
-                    "doctype": Doctype_success_log,
-                    "title": Tittle1,
-                    "message": message,
-                    "to_number": phonenumber,
-                    "time": current_time,
-                }).insert(ignore_permissions=True)
+                log_whatsapp_success(message, phonenumber)
                 response_dict["success"] = True
                 response_dict["message"] = Tittle1
             else:
@@ -951,7 +924,7 @@ def send_whatsapp_with_pdf1(message: str, docname: str, doctype: str, print_form
             frappe.log_error("Status code is not 200", frappe.get_traceback())
             return {"status": "error", "message": "Failed to send message, non-200 response."}
     except requests.exceptions.RequestException:
-        frappe.log_error(title= ERROR_MESSAGE8, message=frappe.get_traceback())
+        frappe.log_error(title=ERROR_MESSAGE8, message=frappe.get_traceback())
         return {"status": "error", "message": "Error in sending WhatsApp message."}
 
     return {"status": "success", "message": "Message sent successfully."}
@@ -1047,7 +1020,6 @@ def upload_file_pdf(doctype: str, docname: str, print_format: str):
 
     invoice = frappe.get_doc("Sales Invoice", docname)
     if invoice.docstatus == 2:
-
         frappe.throw(_(ERROR_MESSAGE5))
 
     whatsapp_conf = frappe.get_doc(DOCNAME)
@@ -1065,7 +1037,9 @@ def upload_file_pdf(doctype: str, docname: str, print_format: str):
 
         file_name = f"{docname}.pdf"
         mime_type = Type_pdf
-        headers = {"Authorization": token}
+        headers = {
+            "Authorization": f"Basic {token}"
+        }
         files = {"file": (file_name, file_content, mime_type)}
 
         response = requests.post(url, headers=headers, files=files)
@@ -1074,7 +1048,7 @@ def upload_file_pdf(doctype: str, docname: str, print_format: str):
         except Exception:
             return {"error": "Invalid JSON response", "raw": response.text}
     except Exception:
-        frappe.log_error(title = file_upload_error, message=frappe.get_traceback())
+        frappe.log_error(title=file_upload_error, message=frappe.get_traceback())
         return {"error": "File upload exception"}
 
 
@@ -1101,7 +1075,6 @@ def rasayel_whatsapp_file_message_pdf(doctype: str, docname: str, print_format: 
 
         sales_invoice = frappe.get_doc("Sales Invoice", docname)
         if sales_invoice.docstatus == 2:
-
             frappe.throw(_(ERROR_MESSAGE5))
 
         customer = sales_invoice.customer
@@ -1166,20 +1139,14 @@ def rasayel_whatsapp_file_message_pdf(doctype: str, docname: str, print_format: 
             )
             return {"error": "Failed to get conversation ID", "raw": response_dict}
 
-        frappe.get_doc({
-            "doctype": Doctype_success_log,
-            "title":Tittle1,
-            "message": conversation_id,
-            "to_number": phone_number,
-            "time": now(),
-        }).insert(ignore_permissions=True)
+        log_whatsapp_success(conversation_id, phone_number)
 
         try:
             close_conversation(conversation_id)
         except Exception:
             frappe.log_error(frappe.get_traceback(), ERROR_MESSAGE1)
 
-        return {"success": True, "conversation_id": conversation_id, "message": ERROR_MESSAGE3}
+        return {"status": "success", "conversation_id": conversation_id, "message": ERROR_MESSAGE3}
 
     except Exception:
         frappe.log_error(
@@ -1197,7 +1164,6 @@ def upload_file_pdfa3(doctype, docname, print_format):
     pdf_a3_path = embed_file_in_pdf(docname, print_format, letterhead=None, language="en")
 
     if not pdf_a3_path:
-
         frappe.throw(_(ERROR_MESSAGE2))
 
     # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
@@ -1224,7 +1190,6 @@ def upload_file_pdfa3(doctype, docname, print_format):
 
     invoice = frappe.get_doc("Sales Invoice", docname)
     if invoice.docstatus == 2:
-        # FIX: Wrapped user-facing string in _()
         frappe.throw(_(ERROR_MESSAGE5))
 
     whatsapp_conf = frappe.get_doc(DOCNAME)
@@ -1280,7 +1245,6 @@ def _rasayel_send_pdfa3(doctype: str, docname: str, print_format: str):
 
     sales_invoice = frappe.get_doc("Sales Invoice", docname)
     if sales_invoice.docstatus == 2:
-        # FIX: Wrapped user-facing string in _()
         frappe.throw(_(ERROR_MESSAGE5))
 
     customer = sales_invoice.customer
@@ -1345,20 +1309,14 @@ def _rasayel_send_pdfa3(doctype: str, docname: str, print_format: str):
         )
         return {"error": "Failed to get conversation ID", "raw": response_dict}
 
-    frappe.get_doc({
-        "doctype": Doctype_success_log,
-        "title": Tittle1,
-        "message": conversation_id,
-        "to_number": phone_number,
-        "time": now(),
-    }).insert(ignore_permissions=True)
+    log_whatsapp_success(conversation_id, phone_number)
 
     try:
         close_conversation(conversation_id)
     except Exception:
         frappe.log_error(frappe.get_traceback(), ERROR_MESSAGE1)
 
-    return {"success": True, "conversation_id": conversation_id, "message": ERROR_MESSAGE3}
+    return {"status": "success", "conversation_id": conversation_id, "message": ERROR_MESSAGE3}
 
 
 def parse_notification_message(message):
@@ -1395,7 +1353,7 @@ def send_bevatel_file_template_message_pdf(doctype: str, docname: str, print_for
         return _send_bevatel_whatsapp(doc, doctype, pdf_url)
 
     except Exception:
-        frappe.log_error(title= ERROR_MESSAGE4, message=frappe.get_traceback())
+        frappe.log_error(title=ERROR_MESSAGE4, message=frappe.get_traceback())
         return {"status": "error", "message": ERROR_MESSAGE6}
 
 
@@ -1407,9 +1365,8 @@ def send_bevatel_file_template_message_pdf_a3(doctype: str, docname: str, print_
         pdf_url = embed_public_file_in_pdf(docname, print_format, letterhead=None, language="en")
         return _send_bevatel_whatsapp(doc, doctype, pdf_url)
     except Exception:
-        frappe.log_error(title= ERROR_MESSAGE4, message=frappe.get_traceback())
+        frappe.log_error(title=ERROR_MESSAGE4, message=frappe.get_traceback())
         return {"status": "error", "message": ERROR_MESSAGE6}
-
 
 
 @frappe.whitelist()
@@ -1432,18 +1389,16 @@ def get_whatsapp_pdf(message: str, docname: str, doctype: str, print_format: str
 
 # FIX: Added type hints to all arguments
 @frappe.whitelist()
-def get_whatsapp_pdf_a3(message: str, docname: str, doctype: str, print_format: str,letterhead:str | None):
-
+def get_whatsapp_pdf_a3(message: str, docname: str, doctype: str, print_format: str, letterhead: str | None):
     try:
         provider = frappe.get_doc(DOCNAME).whatsapp_provider
 
         if provider == "Rasayel":
             return rasayel_whatsapp_file_message_pdfa3(doctype, docname, print_format)
         elif provider == "Bevatel":
-
             return send_bevatel_file_template_message_pdf_a3(doctype, docname, print_format)
         else:
-            return send_whatsapp_with_pdf_a3(message, docname, doctype, print_format,letterhead)
+            return send_whatsapp_with_pdf_a3(message, docname, doctype, print_format, letterhead)
 
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Rasayel File Message Error")
@@ -1480,14 +1435,7 @@ def send_whatsapp_text(message: str, phone: str):
             response_dict = json.loads(response.text)
 
             if response_dict.get("sent"):
-                frappe.get_doc({
-                    "doctype": Doctype_success_log,
-                    "title": Tittle1,
-                    "message": message,
-                    "to_number": phone,
-                    "time": now(),
-                }).insert(ignore_permissions=True)
-
+                log_whatsapp_success(message, phone)
                 return {"status": "success"}
 
         return {"status": "error"}
