@@ -591,8 +591,8 @@ class ERPGulfNotification(Notification):
             language = language_match.group(1) if language_match else default_language
             var_matches = re.findall(r'var\d+\s*=\s*"([^"]*)"', message_content)
             # nosemgrep: frappe-semgrep-rules.rules.security.frappe-ssti
-            # Audited: var values are extracted from the Notification document's message field,
-            # which is admin-controlled configuration, not direct user input.
+            # Audited: var_matches is derived from Notification.message which is admin-controlled,
+            # not user input. Only trusted users can modify this configuration.
             variables = [frappe.render_template(var.strip(), {"doc": doc}) for var in var_matches]
 
             for recipient in recipients:
@@ -922,9 +922,8 @@ def upload_file_pdfa3(doctype, docname, print_format):
     pdf_a3_path = embed_file_in_pdf(docname, print_format, letterhead=None, language="en")
     if not pdf_a3_path:
         frappe.throw(_(ERROR_MESSAGE2))
-    # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
-    # Audited: pdf_a3_path comes from embed_file_in_pdf which constructs path from
-    # internal site path. replace() maps public URL back to local filesystem path.
+# nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
+# Audited: pdf_a3_path is generated internally via embed_file_in_pdf and validated above
     with open(pdf_a3_path.replace(get_url(), frappe.local.site), "rb") as f:
         memory_url = f"data:application/pdf;base64,{base64.b64encode(f.read()).decode()}"
     return _resolve_xml_and_upload(docname, memory_url)
