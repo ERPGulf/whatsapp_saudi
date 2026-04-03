@@ -129,8 +129,6 @@ def receive_whatsapp_message():
 
 
 
-# API – Upload PDF to Rasayel
-
 
 @frappe.whitelist()
 def upload_file_pdf(docname: str):
@@ -147,7 +145,7 @@ def upload_file_pdf(docname: str):
         frappe.log_error("MEMORY URL EMPTY", str(memory_url))
         return {"error": "PDF not generated"}
 
-    # ✅ Decode Base64 PDF
+
     try:
         _, encoded = memory_url.split(",", 1)
         file_content = base64.b64decode(encoded)
@@ -155,14 +153,14 @@ def upload_file_pdf(docname: str):
         frappe.log_error("PDF DECODE FAILED", memory_url)
         return {"error": "PDF decode failed"}
 
-    # ✅ File validation
+
     file_size = len(file_content)
     frappe.log_error("FILE SIZE CHECK", f"{file_size} bytes")
 
     if file_size == 0:
         return {"error": "Generated PDF is empty"}
 
-    # ✅ Prepare file
+
     files = {
         'file': (f"{docname}.pdf", file_content, "application/pdf")
     }

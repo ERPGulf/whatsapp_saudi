@@ -359,7 +359,7 @@ def get_receiver_phone_number(number):
 @frappe.whitelist()
 def bevatel_create_pdf(doctype: str, docname: str, print_format: str):
     pdf = frappe.get_print(doctype, docname, print_format, as_pdf=True)
-    frappe.log_error(title="log3", message="entered")
+
 
     file_doc = frappe.get_doc({
         "doctype": "File",
@@ -500,7 +500,7 @@ def _send_bevatel_whatsapp(doc, doctype, pdf_url):
 
         notification = frappe.get_doc("Notification", notification_list[0].name)
         message_content = notification.message or ""
-        frappe.log_error(title="log4", message=message_content)
+
         # Extract template name
         template_match = re.search(r'message_template_id\s*=\s*"([^"]+)"', message_content)
         template_name = template_match.group(1) if template_match else None
