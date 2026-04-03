@@ -14,11 +14,6 @@ class WhatsappSaudi(Document):
     pass
 
 
-
-
-
-
-
 def create_pdf_base64():
     file = frappe.get_print("Global Defaults", "default_company", as_pdf=True)
     pdf_bytes = io.BytesIO(file)
@@ -38,8 +33,8 @@ def create_pdf(allow_guest=True):
 # API – Send Message
 
 
-@frappe.whitelist(allow_guest=True)
-def send_message(phone, url, instance, token):
+@frappe.whitelist()
+def send_message(phone: str, url: str, instance: str, token: str):
     memory_url = create_pdf()
     phone_number = get_receiver_phone_number(number=phone)
 
@@ -103,7 +98,7 @@ def get_receiver_phone_number(number):
 # API – Receive Message
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def receive_whatsapp_message():
     data = frappe.request.get_data(as_text=True)
 
@@ -137,7 +132,7 @@ def receive_whatsapp_message():
 # API – Upload PDF to Rasayel
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def upload_file_pdf(docname):
     try:
         memory_url = create_pdf()
@@ -195,8 +190,8 @@ def upload_file_pdf(docname):
 
 # API – Send Rasayel File Message
 
-@frappe.whitelist(allow_guest=True)
-def rasayel_whatsapp_file_message_pdf(docname):
+@frappe.whitelist()
+def rasayel_whatsapp_file_message_pdf(docname: str):
     try:
         upload_response = upload_file_pdf(docname)
         if not upload_response or "error" in upload_response:
@@ -294,8 +289,8 @@ def rasayel_whatsapp_file_message_pdf(docname):
 
 
 
-@frappe.whitelist(allow_guest=True)
-def send_bevatel_message(phone):
+@frappe.whitelist()
+def send_bevatel_message(phone: str):
     import requests
 
     doc = frappe.get_doc("Whatsapp Saudi", frappe.form_dict.docname)

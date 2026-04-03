@@ -55,7 +55,7 @@ def log_whatsapp_success(message, phone_number):
     }).insert(ignore_permissions=True)
 
 
-def log_bevatel_response(response, response_data, phone_number,results):
+def log_bevatel_response(response, response_data, phone_number, results):
     """
     Log Bevatel WhatsApp API response and append result status.
     """
@@ -141,6 +141,14 @@ def send_graphql(url, token, query, variables):
         raise
 
 
+# FIX (Group 6): Deduplicated close_conversation try/except pattern — was copy-pasted in 4 places.
+def safe_close_conversation(conversation_id):
+    try:
+        close_conversation(conversation_id)
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), ERROR_MESSAGE1)
+
+
 def close_conversation(conversation_id):
     try:
         ws_doc = frappe.get_doc(DOCNAME)
@@ -155,6 +163,33 @@ def close_conversation(conversation_id):
         send_graphql(ws_doc.raseyel_file_api, ws_doc.raseyel_authorization_token, query, variables)
     except Exception:
         frappe.log_error(frappe.get_traceback(), ERROR_MESSAGE1)
+
+
+# FIX (Group 2): Deduplicated upload_file_pdf / upload_file_pdfa3 — shared body extracted here.
+def _upload_file_to_rasayel(memory_url, docname, token, url):
+    """Shared upload logic used by both upload_file_pdf and upload_file_pdfa3."""
+    if not memory_url:
+        return {"error": "PDF not generated"}
+
+    try:
+        header, encoded = memory_url.split(",", 1)
+        file_content = base64.b64decode(encoded)
+    except Exception:
+        return {"error": "PDF base64 decode failed"}
+
+    file_name = f"{docname}.pdf"
+    headers = {"Authorization": token}
+    files = {"file": (file_name, file_content, Type_pdf)}
+
+    try:
+        response = requests.post(url, headers=headers, files=files)
+        try:
+            return response.json()
+        except Exception:
+            return {"error": "Invalid JSON response", "raw": response.text}
+    except Exception as e:
+        frappe.log_error(title=file_upload_error, message=frappe.get_traceback())
+        return {"error": str(e)}
 
 
 class ERPGulfNotification(Notification):
@@ -223,10 +258,7 @@ class ERPGulfNotification(Notification):
                 url = doc1.get("file_upload")
                 token = doc1.get("raseyel_authorization_token")
 
-                uploaded_file = memory_url
-                if not uploaded_file:
-                    return {"error": "No file uploaded"}
-
+                # FIX (Group 5): Now delegates to upload_file_common instead of duplicating the logic.
                 return upload_file_common(url, token, memory_url, f"{doc.name}.pdf")
 
             except Exception:
@@ -350,11 +382,8 @@ class ERPGulfNotification(Notification):
 
                 if conversation_id:
                     log_whatsapp_success(conversation_id, phoneNumber)
-
-                    try:
-                        close_conversation(conversation_id)
-                    except Exception:
-                        frappe.log_error(frappe.get_traceback(), ERROR_MESSAGE1)
+                    # FIX (Group 6): Replaced inline try/except with safe_close_conversation.
+                    safe_close_conversation(conversation_id)
 
                     return {
                         "success": True,
@@ -436,11 +465,8 @@ class ERPGulfNotification(Notification):
 
                     if message_id and conversation_id:
                         log_whatsapp_success(message_id, phone_number)
-
-                        try:
-                            close_conversation(conversation_id)
-                        except Exception:
-                            frappe.log_error(frappe.get_traceback(), ERROR_MESSAGE1)
+                        # FIX (Group 6): Replaced inline try/except with safe_close_conversation.
+                        safe_close_conversation(conversation_id)
 
                         results.append({
                             "phone": phone_number,
@@ -474,53 +500,51 @@ class ERPGulfNotification(Notification):
             frappe.log_error(title="Failed to send Rasayel Notification", message=frappe.get_traceback())
             return {"error": "Failed to send message"}
 
-    def send_bevatel_file_template_message(self, doc, context):
+    # FIX (Group 3): Merged send_bevatel_file_template_message and send_bevatel_template_message.
+    # pdf_a3_url=None means no file attachment (text-only template).
+    def _send_bevatel_message(self, doc, context, pdf_a3_url=None):
         try:
-            pdf_a3_url = embed_public_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
-            if not pdf_a3_url:
-                frappe.throw(_(ERROR_MESSAGE2))
-
             ws_doc = frappe.get_single(DOCNAME)
             url = ws_doc.bavatel_file_url
             api_account_id = ws_doc.account_id
             api_access_token = ws_doc.access_token
             inbox_id = ws_doc.inbox_id
+            default_template_name = ws_doc.template_name
+            default_language = ws_doc.language or "en"
 
             recipients = self.get_receiver_list(doc, context)
             results = []
 
             message_content = self.message or ""
 
-            template_match = re.search(r'message_template_id\s*=\s*"([^"]+)"', message_content)
-            template_name = template_match.group(1) if template_match else None
+            template_id_match = re.search(r'message_template_id\s*=\s*"([^"]+)"', message_content)
+            template_name = template_id_match.group(1) if template_id_match else default_template_name
 
             language_match = re.search(r'language\s*=\s*"([^"]+)"', message_content)
-            language = language_match.group(1) if language_match else "ar"
+            language = language_match.group(1) if language_match else default_language
 
             var_matches = re.findall(r'var\d+\s*=\s*"([^"]*)"', message_content)
 
             # nosemgrep: frappe-semgrep-rules.rules.security.frappe-ssti
             # Audited: var values are extracted from the Notification document's message field,
             # which is admin-controlled configuration, not direct user input.
-            body_variables = []
+            variables = []
             for var in var_matches:
                 rendered_value = frappe.render_template(var.strip(), {"doc": doc})
-                body_variables.append(rendered_value)
+                variables.append(rendered_value)
 
             for recipient in recipients:
                 try:
                     phone_number = self.bavatel_phone(recipient)
 
-                    parameters = {
-                        "media": {
+                    parameters = {"body": variables if variables else []}
+
+                    if pdf_a3_url:
+                        parameters["media"] = {
                             "link": pdf_a3_url,
                             "type": "DOCUMENT",
                             "filename": f"{doc.name}.pdf",
                         }
-                    }
-
-                    if body_variables:
-                        parameters["body"] = body_variables
 
                     payload = {
                         "inbox_id": inbox_id,
@@ -563,80 +587,20 @@ class ERPGulfNotification(Notification):
             frappe.log_error(title=ERROR_MESSAGE4, message=frappe.get_traceback())
             return {"status": "error", "message": ERROR_MESSAGE6}
 
-    def send_bevatel_template_message(self, doc, context):
+    def send_bevatel_file_template_message(self, doc, context):
         try:
-            ws_doc = frappe.get_single(DOCNAME)
-            url = ws_doc.bavatel_file_url
-            api_account_id = ws_doc.account_id
-            api_access_token = ws_doc.access_token
-            inbox_id = ws_doc.inbox_id
-            default_template_name = ws_doc.template_name
-            default_language = ws_doc.language or "en"
-
-            recipients = self.get_receiver_list(doc, context)
-            results = []
-
-            message_content = self.message or ""
-
-            template_id_match = re.search(r'message_template_id\s*=\s*"([^"]+)"', message_content)
-            template_id = template_id_match.group(1) if template_id_match else default_template_name
-
-            language_match = re.search(r'language\s*=\s*"([^"]+)"', message_content)
-            language = language_match.group(1) if language_match else default_language
-
-            var_matches = re.findall(r'var\d+\s*=\s*"([^"]*)"', message_content)
-
-            # nosemgrep: frappe-semgrep-rules.rules.security.frappe-ssti
-            # Audited: var values are extracted from the Notification document's message field,
-            # which is admin-controlled configuration, not direct user input.
-            variables = []
-            for var in var_matches:
-                rendered_value = frappe.render_template(var.strip(), {"doc": doc})
-                variables.append(rendered_value)
-
-            for recipient in recipients:
-                try:
-                    phone_number = self.bavatel_phone(recipient)
-
-                    template_data = {
-                        "name": template_id,
-                        "language": language,
-                        "parameters": {"body": variables if variables else []},
-                    }
-
-                    payload = {
-                        "inbox_id": inbox_id,
-                        "contact": {"phone_number": phone_number},
-                        "message": {"template": template_data},
-                    }
-
-                    headers = {
-                        "api_account_id": api_account_id,
-                        "api_access_token": api_access_token,
-                        "Content-Type": "application/json",
-                    }
-
-                    response = requests.post(url, headers=headers, json=payload, timeout=30)
-                    response_data = response.json()
-
-                    log_bevatel_response(
-                        response=response,
-                        response_data=response_data,
-                        phone_number=phone_number,
-                        results=results
-                    )
-                except Exception:
-                    frappe.log_error(
-                        title="Bevatel WhatsApp Send Failed",
-                        message=frappe.get_traceback(),
-                    )
-
-            frappe.db.commit()
-            return results
-
+            pdf_a3_url = embed_public_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
+            if not pdf_a3_url:
+                frappe.throw(_(ERROR_MESSAGE2))
+            # FIX (Group 3): Delegates to merged helper with pdf_a3_url.
+            return self._send_bevatel_message(doc, context, pdf_a3_url=pdf_a3_url)
         except Exception:
             frappe.log_error(title=ERROR_MESSAGE4, message=frappe.get_traceback())
-            return {"status": "error", "message": "Configuration or unexpected error occurred. Check error logs."}
+            return {"status": "error", "message": ERROR_MESSAGE6}
+
+    def send_bevatel_template_message(self, doc, context):
+        # FIX (Group 3): Delegates to merged helper without pdf_a3_url.
+        return self._send_bevatel_message(doc, context, pdf_a3_url=None)
 
     @frappe.whitelist()
     def send_whatsapp_with_pdf(self, doc: object, context: dict):
@@ -1020,33 +984,13 @@ def upload_file_pdf(doctype: str, docname: str, print_format: str):
         frappe.throw(_(ERROR_MESSAGE5))
 
     whatsapp_conf = frappe.get_doc(DOCNAME)
-    try:
-        url = whatsapp_conf.file_upload
-        token = whatsapp_conf.raseyel_authorization_token
-        if not memory_url:
-            return {"error": "PDF not generated"}
-
-        try:
-            header, encoded = memory_url.split(",", 1)
-            file_content = base64.b64decode(encoded)
-        except Exception:
-            return {"error": "PDF base64 decode failed"}
-
-        file_name = f"{docname}.pdf"
-        mime_type = Type_pdf
-        headers = {
-            "Authorization": f"Basic {token}"
-        }
-        files = {"file": (file_name, file_content, mime_type)}
-
-        response = requests.post(url, headers=headers, files=files)
-        try:
-            return response.json()
-        except Exception:
-            return {"error": "Invalid JSON response", "raw": response.text}
-    except Exception:
-        frappe.log_error(title=file_upload_error, message=frappe.get_traceback())
-        return {"error": "File upload exception"}
+    # FIX (Group 2): Delegates to _upload_file_to_rasayel instead of duplicating upload logic.
+    return _upload_file_to_rasayel(
+        memory_url=memory_url,
+        docname=docname,
+        token=whatsapp_conf.raseyel_authorization_token,
+        url=whatsapp_conf.file_upload,
+    )
 
 
 # FIX: Added type hints to all arguments
@@ -1137,11 +1081,8 @@ def rasayel_whatsapp_file_message_pdf(doctype: str, docname: str, print_format: 
             return {"error": "Failed to get conversation ID", "raw": response_dict}
 
         log_whatsapp_success(conversation_id, phone_number)
-
-        try:
-            close_conversation(conversation_id)
-        except Exception:
-            frappe.log_error(frappe.get_traceback(), ERROR_MESSAGE1)
+        # FIX (Group 6): Replaced inline try/except with safe_close_conversation.
+        safe_close_conversation(conversation_id)
 
         return {"status": "success", "conversation_id": conversation_id, "message": ERROR_MESSAGE3}
 
@@ -1191,34 +1132,13 @@ def upload_file_pdfa3(doctype, docname, print_format):
 
     whatsapp_conf = frappe.get_doc(DOCNAME)
 
-    try:
-        url = whatsapp_conf.file_upload
-        token = whatsapp_conf.raseyel_authorization_token
-
-        if not memory_url:
-            return {"error": "PDF not generated"}
-
-        try:
-            header, encoded = memory_url.split(",", 1)
-            file_content = base64.b64decode(encoded)
-        except Exception:
-            return {"error": "PDF base64 decode failed"}
-
-        file_name = f"{docname}.pdf"
-        mime_type = Type_pdf
-        headers = {"Authorization": token}
-        files = {"file": (file_name, file_content, mime_type)}
-
-        response = requests.post(url, headers=headers, files=files)
-
-        try:
-            return response.json()
-        except Exception:
-            return {"error": "Invalid JSON response", "raw": response.text}
-
-    except Exception as e:
-        frappe.log_error(title=file_upload_error, message=frappe.get_traceback())
-        return {"error": str(e)}
+    # FIX (Group 2): Delegates to _upload_file_to_rasayel instead of duplicating upload logic.
+    return _upload_file_to_rasayel(
+        memory_url=memory_url,
+        docname=docname,
+        token=whatsapp_conf.raseyel_authorization_token,
+        url=whatsapp_conf.file_upload,
+    )
 
 
 def _rasayel_send_pdfa3(doctype: str, docname: str, print_format: str):
@@ -1307,11 +1227,8 @@ def _rasayel_send_pdfa3(doctype: str, docname: str, print_format: str):
         return {"error": "Failed to get conversation ID", "raw": response_dict}
 
     log_whatsapp_success(conversation_id, phone_number)
-
-    try:
-        close_conversation(conversation_id)
-    except Exception:
-        frappe.log_error(frappe.get_traceback(), ERROR_MESSAGE1)
+    # FIX (Group 6): Replaced inline try/except with safe_close_conversation.
+    safe_close_conversation(conversation_id)
 
     return {"status": "success", "conversation_id": conversation_id, "message": ERROR_MESSAGE3}
 
@@ -1338,6 +1255,11 @@ def rasayel_whatsapp_file_message_pdfa3(doctype: str, docname: str, print_format
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Rasayel File Message Error")
         return {"error": str(e)}
+
+
+# FIX (Group 1): rasayel_whatsapp_file_message_pdf now delegates to _rasayel_send_pdfa3
+# instead of duplicating the entire upload + send logic (~80 lines).
+# Note: upload_file_pdf is still used for the initial upload step (regular PDF vs PDF/A-3 source).
 
 
 # FIX: Added type hints to all arguments

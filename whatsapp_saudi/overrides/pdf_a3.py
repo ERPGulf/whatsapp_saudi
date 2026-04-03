@@ -17,6 +17,8 @@ sales_invoice_doctype = "Sales Invoice"
 GTS_PDFA1 = "/GTS_PDFA1"
 DOCNAME = "Whatsapp Saudi"
 TITTLE = "Message successfully sent"
+ERROR1 = "Bevatel WhatsApp Send Failed"
+ERROR2 = "Failed to generate PDF/A-3 file"
 
 def normalize_phone_bavatel(number):
     phone_number = (number or "").replace("-", "").replace(" ", "")
@@ -270,7 +272,7 @@ def send_whatsapp_with_pdf_a3(message: str, docname: str,doctype: str, print_for
 
         if not pdf_a3_path:
             # FIX 3: Wrapped user-facing string in _()
-            frappe.throw(_("Failed to generate PDF/A-3 file!"))
+            frappe.throw(_(ERROR2))
 
         # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
         # Audited: pdf_a3_path is returned from embed_file_in_pdf which constructs it from
@@ -465,7 +467,7 @@ def _send_bevatel_whatsapp(doc, doctype, pdf_url):
     try:
         if not pdf_url:
             # FIX 3: Wrapped user-facing string in _()
-            frappe.throw(_("Failed to generate PDF/A-3 file!"))
+            frappe.throw(_(ERROR2))
 
         ws_doc = frappe.get_single(DOCNAME)
 
@@ -565,14 +567,14 @@ def _send_bevatel_whatsapp(doc, doctype, pdf_url):
 
         else:
             frappe.log_error(
-                title="Bevatel WhatsApp API Error",
+                title= ERROR1,
                 message=json.dumps(response_data),
             )
             return {"status": "failed", "phone": phone_number, "error": response_data}
 
     except Exception:
         frappe.log_error(
-            title="Bevatel WhatsApp Send Failed",
+            title= ERROR1,
             message=frappe.get_traceback(),
         )
         return {"status": "error", "message": "Sending failed"}
