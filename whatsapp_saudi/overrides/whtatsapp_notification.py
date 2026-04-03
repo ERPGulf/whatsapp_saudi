@@ -767,9 +767,6 @@ class ERPGulfNotification(Notification):
                 frappe.log_error(title="Failed to send standard notification", message=frappe.get_traceback())
 
 
-# ─────────────────────────────────────────────
-# Whitelisted API functions
-# ─────────────────────────────────────────────
 
 @frappe.whitelist()
 def create_pdf1(doctype: str, docname: str, print_format: str):
