@@ -37,6 +37,7 @@ Type = "application/json"
 Type_pdf = "application/pdf"
 
 
+
 def log_whatsapp_success(message, phone_number):
     """
     Insert a success record into the WhatsApp Saudi success log doctype.
@@ -54,7 +55,7 @@ def log_whatsapp_success(message, phone_number):
     }).insert(ignore_permissions=True)
 
 
-def log_bevatel_response(response, response_data, phone_number,Tittle1, Doctype_success_log, results):
+def log_bevatel_response(response, response_data, phone_number,results):
     """
     Log Bevatel WhatsApp API response and append result status.
     """
@@ -546,8 +547,6 @@ class ERPGulfNotification(Notification):
                         response=response,
                         response_data=response_data,
                         phone_number=phone_number,
-                        title1=Tittle1,
-                        Doctype_success_log=Doctype_success_log,
                         results=results
                     )
 
@@ -624,8 +623,6 @@ class ERPGulfNotification(Notification):
                         response=response,
                         response_data=response_data,
                         phone_number=phone_number,
-                        title1=Tittle1,
-                        Doctype_success_log=Doctype_success_log,
                         results=results
                     )
                 except Exception:
