@@ -133,7 +133,7 @@ def receive_whatsapp_message():
 
 
 @frappe.whitelist()
-def upload_file_pdf(docname):
+def upload_file_pdf(docname: str):
     try:
         memory_url = create_pdf()
     except Exception as e:
