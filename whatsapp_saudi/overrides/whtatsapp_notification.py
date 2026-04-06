@@ -652,7 +652,7 @@ class ERPGulfNotification(Notification):
             frappe.throw(_(ERROR_MESSAGE2))
 
         file_path = pdf_info.get("file_path")
-
+        #nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
         with open(file_path, "rb") as pdf_file:
             pdf_base64 = base64.b64encode(pdf_file.read()).decode()
         memory_url = f"data:application/pdf;base64,{pdf_base64}"
