@@ -646,13 +646,14 @@ class ERPGulfNotification(Notification):
 
     @frappe.whitelist()
     def send_whatsapp_with_pdf(self, doc: object, context: dict):
-        pdf_a3_path = embed_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
-        if not pdf_a3_path:
+        pdf_info = embed_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
+
+        if not pdf_info:
             frappe.throw(_(ERROR_MESSAGE2))
-        # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
-        # Audited: pdf_a3_path comes from embed_file_in_pdf which constructs path from
-        # internal site path. replace() maps public URL back to local filesystem path.
-        with open(pdf_a3_path.replace(get_url(), frappe.local.site), "rb") as pdf_file:
+
+        file_path = pdf_info.get("file_path")
+
+        with open(file_path, "rb") as pdf_file:
             pdf_base64 = base64.b64encode(pdf_file.read()).decode()
         memory_url = f"data:application/pdf;base64,{pdf_base64}"
         recipients = self.get_receiver_list(doc, context)

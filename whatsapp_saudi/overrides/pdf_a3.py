@@ -247,7 +247,10 @@ def embed_file_in_pdf(invoice_name: str, print_format: str, letterhead: str | No
             )
         file_doc.insert(ignore_permissions=True)
 
-        return get_url(file_doc.file_url)
+        return {
+        "file_url": get_url(file_doc.file_url),
+        "file_path": final_pdf,
+    }
 
     except pikepdf.PdfError as e:
         frappe.msgprint(f"Error processing the PDF: {e}")
