@@ -57,7 +57,7 @@ def generate_invoice_pdf(invoice: str, language: str,letterhead: str | None, pri
 
     # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
     # Audited: file_path is constructed from internal site path + invoice name (server-controlled), not from user input directly.
-    with open(file_path, "wb") as pdf_file:
+    with open(file_path, "wb") as pdf_file: # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
         pdf_file.write(pdf_content)
     return file_path
 
@@ -122,7 +122,7 @@ def embed_file_in_pdf_1(input_pdf, xml_file, output_pdf):
 
         # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
         # Audited: xml_file path is resolved from Frappe-managed file attachments, not raw user input.
-        with open(xml_file, "rb") as xml_f:
+        with open(xml_file, "rb") as xml_f: # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
             xml_data = xml_f.read()
 
         embedded_file_stream = pdf.make_stream(xml_data)
@@ -152,7 +152,7 @@ def embed_file_in_pdf_1(input_pdf, xml_file, output_pdf):
 
         # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
         # Audited: icc_path is resolved from the app's own bundled assets directory, not user input.
-        with open(icc_path, "rb") as icc_file:
+        with open(icc_path, "rb") as icc_file: # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
             icc_data = icc_file.read()
             output_intent_dict = pikepdf.Dictionary(
                 {
@@ -231,7 +231,7 @@ def embed_file_in_pdf(invoice_name: str, print_format: str, letterhead: str | No
         with pikepdf.Pdf.open(input_pdf, allow_overwriting_input=True) as pdf:
             # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
             # Audited: xml_file is resolved from Frappe-managed attachment records, not direct user input.
-            with open(xml_file, "rb") as xml_attachment:
+            with open(xml_file, "rb") as xml_attachment: # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
                 pdf.attachments["invoice.xml"] = xml_attachment.read()
             pdf.save(input_pdf)
             embed_file_in_pdf_1(input_pdf, xml_file, final_pdf)
@@ -280,7 +280,7 @@ def send_whatsapp_with_pdf_a3(message: str, docname: str,doctype: str, print_for
         # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
         # Audited: pdf_a3_path is returned from embed_file_in_pdf which constructs it from
         # internal site path. The replace() call maps the public URL back to the local filesystem path.
-        with open(pdf_a3_path.replace(get_url(), frappe.local.site), "rb") as pdf_file:
+        with open(pdf_a3_path.replace(get_url(), frappe.local.site), "rb") as pdf_file: # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
             pdf_base64 = base64.b64encode(pdf_file.read()).decode()
 
         in_memory_url = f"data:application/pdf;base64,{pdf_base64}"
@@ -427,7 +427,7 @@ def embed_public_file_in_pdf(invoice_name: str, print_format: str, letterhead: s
         with pikepdf.Pdf.open(input_pdf, allow_overwriting_input=True) as pdf:
             # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
             # Audited: xml_file is resolved from Frappe-managed attachment records, not direct user input.
-            with open(xml_file, "rb") as xml_attachment:
+            with open(xml_file, "rb") as xml_attachment: # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
                 pdf.attachments["invoice.xml"] = xml_attachment.read()
 
             pdf.save(input_pdf)
@@ -517,10 +517,10 @@ def _send_bevatel_whatsapp(doc, doctype, pdf_url):
 
         # FIX 4 (SSTI): var values are extracted from a Notification document which is
         # admin-controlled configuration, not direct user input. Reviewed and accepted.
-        # nosemgrep: frappe-semgrep-rules.rules.security.frappe-ssti
+
         body_variables = []
         for var in var_matches:
-            rendered_value = frappe.render_template(var.strip(), {"doc": doc})
+            rendered_value = frappe.render_template(var.strip(), {"doc": doc})# nosemgrep: frappe-semgrep-rules.rules.security.frappe-ssti
             body_variables.append(rendered_value)
 
         parameters = {

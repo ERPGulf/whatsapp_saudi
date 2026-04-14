@@ -8,6 +8,7 @@ import base64
 from frappe.utils import now
 import json
 import time
+from frappe import _
 ERROR_MESSAGE="Invalid JSON"
 
 class WhatsappSaudi(Document):
@@ -58,7 +59,7 @@ def send_message(phone: str, url: str, instance: str, token: str):
             try:
                 response_dict = response.json()
             except Exception:
-                frappe.msgprint("Invalid JSON response")
+                frappe.msgprint(_("Invalid JSON response"))
                 return
 
             if response_dict.get("sent") and response_dict.get("id"):
@@ -68,14 +69,14 @@ def send_message(phone: str, url: str, instance: str, token: str):
                     "message": "testing",
                     "time": now()
                 }).insert(ignore_permissions=True)
-                frappe.msgprint("Sent successfully")
+                frappe.msgprint(_("Sent successfully"))
 
             elif response_dict.get("success") is False:
-                frappe.msgprint("API access prohibited or incorrect token")
+                frappe.msgprint(_("API access prohibited or incorrect token"))
                 frappe.log_error("API access issue", frappe.get_traceback())
 
             else:
-                frappe.msgprint("Invalid phone number format")
+                frappe.msgprint(_("Invalid phone number format"))
                 frappe.log_error("Invalid phone format", frappe.get_traceback())
 
         else:
@@ -327,7 +328,7 @@ def send_bevatel_message(phone: str):
                 "to_number": phone,
                 "time": now()
             }).insert(ignore_permissions=True)
-            frappe.msgprint("Sent successfully")
+            frappe.msgprint(_("Sent successfully"))
 
         else:
             frappe.log_error(
