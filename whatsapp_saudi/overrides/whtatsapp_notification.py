@@ -153,6 +153,35 @@ def close_conversation(conversation_id):
     except Exception:
         frappe.log_error(frappe.get_traceback(), ERROR_MESSAGE1)
 
+def generate_pdf_base64_rasayel(docname, print_format):
+    pdf_a3_path = embed_file_in_pdf(
+        docname, print_format, letterhead=None, language="en"
+    )
+
+    if not pdf_a3_path:
+        frappe.throw(_(ERROR_MESSAGE2))
+
+    if isinstance(pdf_a3_path, dict):
+        file_url = (
+            pdf_a3_path.get("file_url")
+            or pdf_a3_path.get("message", {}).get("file_url")
+        )
+    else:
+        file_url = pdf_a3_path
+
+    if not file_url:
+        frappe.throw("File URL not found in PDF response")
+
+    file_path = file_url.replace(get_url(), frappe.local.site)
+
+    try:
+        with open(file_path, "rb") as pdf_file:
+            pdf_base64 = base64.b64encode(pdf_file.read()).decode()
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "PDF File Read Error")
+        return None
+
+    return f"data:application/pdf;base64,{pdf_base64}"
 
 def _upload_file_to_rasayel(memory_url, docname, token, url):
     """Shared upload logic used by both upload_file_pdf and upload_file_pdfa3."""
@@ -364,34 +393,10 @@ class ERPGulfNotification(Notification):
         return generate_pdf_base64_from_bytes(pdf_bytes)
 
     def upload_file(self, doc, context):
-        pdf_a3_path = embed_file_in_pdf(
-            doc.name, self.print_format, letterhead=None, language="en"
-        )
+        memory_url = generate_pdf_base64_rasayel(doc.name, self.print_format)
 
-        if not pdf_a3_path:
-            frappe.throw(_(ERROR_MESSAGE2))
-
-        if isinstance(pdf_a3_path, dict):
-            file_url = (
-                pdf_a3_path.get("file_url")
-                or pdf_a3_path.get("message", {}).get("file_url")
-            )
-        else:
-            file_url = pdf_a3_path
-
-        if not file_url:
-            frappe.throw("File URL not found in PDF response")
-
-        file_path = file_url.replace(get_url(), frappe.local.site)
-
-        try:
-            with open(file_path, "rb") as pdf_file:
-                pdf_base64 = base64.b64encode(pdf_file.read()).decode()
-        except Exception:
-            frappe.log_error(frappe.get_traceback(), "PDF File Read Error")
-            return {"error": "Failed to read PDF file"}
-
-        memory_url = f"data:application/pdf;base64,{pdf_base64}"
+        if not memory_url:
+            return {"error": "Failed to generate PDF"}
 
         try:
             doc1 = frappe.get_doc(DOCNAME)
@@ -402,7 +407,6 @@ class ERPGulfNotification(Notification):
 
         except Exception:
             frappe.log_error(frappe.get_traceback(), file_upload_error)
-            return {"error": "File upload exception"}
 
     def rasayel_whatsapp_file_message(self, doc, context):
         recipients = self.get_receiver_list(doc, context)
@@ -938,33 +942,12 @@ def upload_file_pdf(doctype: str, docname: str, print_format: str):
 
 
 def upload_file_pdfa3(doctype, docname, print_format):
-    pdf_a3_path = embed_file_in_pdf(docname, print_format, letterhead=None, language="en")
-    if not pdf_a3_path:
-        frappe.throw(_(ERROR_MESSAGE2))
-    if isinstance(pdf_a3_path, dict):
-        file_url = (
-            pdf_a3_path.get("file_url")
-            or pdf_a3_path.get("message", {}).get("file_url")
-        )
-    else:
-        file_url = pdf_a3_path
+    memory_url = generate_pdf_base64_rasayel(docname, print_format)
 
-    if not file_url:
-        frappe.throw("File URL not found in PDF response")
+    if not memory_url:
+        return {"error": "Failed to generate PDF"}
 
-    file_path = file_url.replace(get_url(), frappe.local.site)
-
-    try:
-        with open(file_path, "rb") as pdf_file:
-            pdf_base64 = base64.b64encode(pdf_file.read()).decode()
-    except Exception:
-        frappe.log_error(frappe.get_traceback(), "PDF File Read Error")
-        return {"error": "Failed to read PDF file"}
-
-    memory_url = f"data:application/pdf;base64,{pdf_base64}"
-
-    return _resolve_xml_and_upload(docname,memory_url)
-
+    return _resolve_xml_and_upload(docname, memory_url)
 
 @frappe.whitelist()
 def rasayel_whatsapp_file_message_pdf(doctype: str, docname: str, print_format: str):
