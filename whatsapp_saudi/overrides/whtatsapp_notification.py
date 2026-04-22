@@ -364,20 +364,42 @@ class ERPGulfNotification(Notification):
         return generate_pdf_base64_from_bytes(pdf_bytes)
 
     def upload_file(self, doc, context):
-        pdf_a3_path = embed_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
+        pdf_a3_path = embed_file_in_pdf(
+            doc.name, self.print_format, letterhead=None, language="en"
+        )
+
         if not pdf_a3_path:
             frappe.throw(_(ERROR_MESSAGE2))
-        # nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
-        # Audited: pdf_a3_path comes from embed_file_in_pdf which constructs path from
-        # internal site path. replace() maps public URL back to local filesystem path.
-        with open(pdf_a3_path.replace(get_url(), frappe.local.site), "rb") as pdf_file:
-            pdf_base64 = base64.b64encode(pdf_file.read()).decode()
+
+        if isinstance(pdf_a3_path, dict):
+            file_url = (
+                pdf_a3_path.get("file_url")
+                or pdf_a3_path.get("message", {}).get("file_url")
+            )
+        else:
+            file_url = pdf_a3_path
+
+        if not file_url:
+            frappe.throw("File URL not found in PDF response")
+
+        file_path = file_url.replace(get_url(), frappe.local.site)
+
+        try:
+            with open(file_path, "rb") as pdf_file:
+                pdf_base64 = base64.b64encode(pdf_file.read()).decode()
+        except Exception:
+            frappe.log_error(frappe.get_traceback(), "PDF File Read Error")
+            return {"error": "Failed to read PDF file"}
+
         memory_url = f"data:application/pdf;base64,{pdf_base64}"
+
         try:
             doc1 = frappe.get_doc(DOCNAME)
             url = doc1.get("file_upload")
             token = doc1.get("raseyel_authorization_token")
+
             return upload_file_common(url, token, memory_url, f"{doc.name}.pdf")
+
         except Exception:
             frappe.log_error(frappe.get_traceback(), file_upload_error)
             return {"error": "File upload exception"}
@@ -439,6 +461,7 @@ class ERPGulfNotification(Notification):
                     },
                 })
                 response = requests.post(url, headers=headers, data=payload_normal)
+
                 response_json = response.text
 
                 try:
@@ -500,7 +523,7 @@ class ERPGulfNotification(Notification):
                     title="Rasayel API Error",
                     message=json.dumps({
                         "invoice": doc.name,
-                        "response": response.text,
+                        "response":response_json if 'response_json' in locals() else "No response",
                         "text": frappe.get_traceback(),
                     }, indent=2),
                 )
@@ -745,7 +768,7 @@ class ERPGulfNotification(Notification):
         if self.is_standard:
             self.load_standard_properties(context)
         if self.channel == DOCNAME:
-            frappe.log_error(title="DEBUG STEP 3 - Channel Matched", message="Inside Whatsapp Saudi channel")
+
             try:
                 if self.attach_print and self.print_format:
                     fn = {
@@ -918,10 +941,29 @@ def upload_file_pdfa3(doctype, docname, print_format):
     pdf_a3_path = embed_file_in_pdf(docname, print_format, letterhead=None, language="en")
     if not pdf_a3_path:
         frappe.throw(_(ERROR_MESSAGE2))
-# nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
-    with open(pdf_a3_path.replace(get_url(), frappe.local.site), "rb") as f:
-        memory_url = f"data:application/pdf;base64,{base64.b64encode(f.read()).decode()}"
-    return _resolve_xml_and_upload(docname, memory_url)
+    if isinstance(pdf_a3_path, dict):
+        file_url = (
+            pdf_a3_path.get("file_url")
+            or pdf_a3_path.get("message", {}).get("file_url")
+        )
+    else:
+        file_url = pdf_a3_path
+
+    if not file_url:
+        frappe.throw("File URL not found in PDF response")
+
+    file_path = file_url.replace(get_url(), frappe.local.site)
+
+    try:
+        with open(file_path, "rb") as pdf_file:
+            pdf_base64 = base64.b64encode(pdf_file.read()).decode()
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "PDF File Read Error")
+        return {"error": "Failed to read PDF file"}
+
+    memory_url = f"data:application/pdf;base64,{pdf_base64}"
+
+    return _resolve_xml_and_upload(docname,memory_url)
 
 
 @frappe.whitelist()
