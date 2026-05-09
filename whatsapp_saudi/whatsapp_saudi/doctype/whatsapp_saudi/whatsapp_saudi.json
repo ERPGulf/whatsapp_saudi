@@ -30,7 +30,10 @@
   "bavatel_file_url",
   "inbox_id",
   "template_name",
-  "language"
+  "language",
+  "fcm_tab",
+  "client_token",
+  "firebase_notification"
  ],
  "fields": [
   {
@@ -156,12 +159,28 @@
    "fieldname": "tab_4_tab",
    "fieldtype": "Tab Break",
    "label": "Setting"
+  },
+  {
+   "fieldname": "fcm_tab",
+   "fieldtype": "Tab Break",
+   "label": "FCM"
+  },
+  {
+   "fieldname": "client_token",
+   "fieldtype": "Data",
+   "label": "Client Token"
+  },
+  {
+   "default": "0",
+   "fieldname": "firebase_notification",
+   "fieldtype": "Check",
+   "label": "Firebase Notification"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-02-18 16:08:45.835461",
+ "modified": "2026-05-09 08:53:13.852547",
  "modified_by": "Administrator",
  "module": "Whatsapp Saudi",
  "name": "Whatsapp Saudi",

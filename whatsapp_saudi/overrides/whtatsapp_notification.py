@@ -19,7 +19,9 @@ from whatsapp_saudi.overrides.pdf_a3 import (
 )
 from frappe.core.doctype.role.role import get_info_based_on_role, get_user_info
 from frappe.utils.jinja import render_template
-
+import firebase_admin
+from firebase_admin import credentials, messaging
+FIREBASE_CHANNEL = "Firebase Notification"
 ERROR_MESSAGE = "success: false, reason: API access prohibited or incorrect instanceid or token"
 ERROR_MESSAGE1 = "Failed to close conversation"
 ERROR_MESSAGE2 = "Failed to generate PDF/A-3 file!"
@@ -764,14 +766,116 @@ class ERPGulfNotification(Notification):
                 results.append({"phone": phoneNumber, "success": False, "error": "request exception"})
         return results
 
+
+    def initialize_firebase(self):
+        """Initialize Firebase only once."""
+        try:
+            firebase_admin.get_app()
+        except ValueError:
+            firebase_path = frappe.get_site_path("private", "firebase.json")
+            cred = credentials.Certificate(firebase_path)
+            firebase_admin.initialize_app(cred)
+
+
+    def send_firebase_message(self, doc, context):
+        """
+        Firebase notification using Notification Message config
+        Example:
+        client_token="{{ doc.custom_firebase_token }}"
+        title="Order Overdue"
+        body="Invoice {{ doc.name }} overdue"
+        """
+        try:
+            self.initialize_firebase()
+
+            # Render Notification Message
+            msg_block = frappe.render_template(self.message, context)
+
+            # Parse config
+            parsed = self.parse_message_block(msg_block)
+
+            client_token = parsed.get("client_token")
+            topic = parsed.get("topic")
+            title = parsed.get("title") or "ERP Notification"
+            body = parsed.get("body") or ""
+
+            if not client_token and not topic:
+                return {
+                    "success": False,
+                    "error": "client_token or topic is required in Notification Message"
+                }
+
+            # Firebase payload
+            message_args = {
+                "notification": messaging.Notification(
+                    title=title,
+                    body=body
+                )
+            }
+
+            if client_token:
+                message_args["token"] = client_token
+
+            if topic:
+                message_args["topic"] = topic
+
+            message = messaging.Message(**message_args)
+
+            response = messaging.send(message)
+
+            frappe.log_error(
+                title="Firebase Notification Success",
+                message=f"""
+                Firebase notification sent successfully
+
+                Document: {doc.doctype} - {doc.name}
+                Title: {title}
+                Body: {body}
+                Client Token: {client_token or "N/A"}
+                Topic: {topic or "N/A"}
+                Firebase Message ID: {response}
+                """
+                        )
+
+        except Exception:
+            frappe.log_error(
+                title="Firebase Notification Failed",
+                message=frappe.get_traceback()
+            )
+
+            return {
+                "success": False,
+                "error": frappe.get_traceback()
+            }
+
+
     def send(self, doc):
         context = {"doc": doc, "alert": self, "comments": None}
+
         if doc.get("_comments"):
             context["comments"] = json.loads(doc.get("_comments"))
-        rasayel_api = frappe.get_doc(DOCNAME).whatsapp_provider
+
         if self.is_standard:
             self.load_standard_properties(context)
-        if self.channel == DOCNAME:
+
+        if self.channel == FIREBASE_CHANNEL:
+            try:
+                frappe.enqueue(
+                    self.send_firebase_message,
+                    queue="long",
+                    timeout=600,
+                    doc=doc,
+                    context=context
+                )
+            except Exception:
+                frappe.log_error(
+                    title="Failed to send Firebase notification",
+                    message=frappe.get_traceback()
+                )
+
+        elif self.channel == DOCNAME:
+
+            rasayel_api = frappe.get_doc(DOCNAME).whatsapp_provider
 
             try:
                 if self.attach_print and self.print_format:
@@ -786,15 +890,21 @@ class ERPGulfNotification(Notification):
                     }.get(rasayel_api, self.send_whatsapp_without_pdf)
 
                 frappe.enqueue(fn, queue="long", timeout=600, doc=doc, context=context)
+
             except Exception:
-                frappe.log_error(title="Failed to send WhatsApp notification", message=frappe.get_traceback())
+                frappe.log_error(
+                    title="Failed to send WhatsApp notification",
+                    message=frappe.get_traceback()
+                )
+
         else:
             try:
                 super(ERPGulfNotification, self).send(doc)
             except Exception:
-                frappe.log_error(title="Failed to send standard notification", message=frappe.get_traceback())
-
-
+                frappe.log_error(
+                    title="Failed to send standard notification",
+                    message=frappe.get_traceback()
+                )
 
 @frappe.whitelist()
 def create_pdf1(doctype: str, docname: str, print_format: str):

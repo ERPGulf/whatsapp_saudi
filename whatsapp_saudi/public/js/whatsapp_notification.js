@@ -39,21 +39,21 @@ frappe.notification = {
 
 			// set value changed options
 			frm.set_df_property("value_changed",
-			                "options",
-			                [""].concat(options));
+				"options",
+				[""].concat(options));
 			frm.set_df_property("set_property_after_alert",
-			                 "options",
-							 [""].concat(options));
+				"options",
+				[""].concat(options));
 
 			// set date changed options
 			frm.set_df_property("date_changed",
-			                   "options",
-							    get_date_change_options());
+				"options",
+				get_date_change_options());
 
 
 
 			let receiver_fields = [];
-			if (frm.doc.channel === "Email")  {
+			if (frm.doc.channel === "Email") {
 				receiver_fields = $.map(fields, function (d) {
 					// Add User and Email fields from child into select dropdown
 					if (d.fieldtype == "Table") {
@@ -108,7 +108,7 @@ Last comment: {{ comments[-1].comment }} by {{ comments[-1].by }}
 &lt;/ul&gt;
 </pre>
 			`;
-		} else if (in_list(["Slack", "System Notification", "SMS","Whatsapp Saudi"], frm.doc.channel)) {
+		} else if (in_list(["Slack", "System Notification", "SMS", "Whatsapp Saudi", "Firebase Notification"], frm.doc.channel)) {
 			template = `<h5>Message Example</h5>
 
 <pre>*Order Overdue*
@@ -191,7 +191,7 @@ frappe.ui.form.on("Notification", {
 		}
 	},
 	channel: function (frm) {
-		frm.toggle_reqd("recipients", frm.doc.channel == "Email"|| frm.doc.channel == "Whatsapp Saudi");
+		frm.toggle_reqd("recipients", frm.doc.channel == "Email" || frm.doc.channel == "Whatsapp Saudi");
 		frappe.notification.setup_fieldname_select(frm);
 		frappe.notification.setup_example_message(frm);
 		if (frm.doc.channel === "SMS" && frm.doc.__islocal) {
