@@ -14,6 +14,6 @@
         "property": "options",
         "property_type": null,
         "row_name": null,
-        "value": "Email\nSlack\nSystem Notification\nSMS\nWhatsapp Saudi"
+        "value": "Email\nSlack\nSystem Notification\nSMS\nWhatsapp Saudi\nFirebase Notification"
     }
 ]
