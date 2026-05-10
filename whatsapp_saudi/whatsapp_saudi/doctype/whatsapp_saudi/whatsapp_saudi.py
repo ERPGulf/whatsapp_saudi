@@ -9,6 +9,9 @@ from frappe.utils import now
 import json
 import time
 from frappe import _
+import firebase_admin
+from firebase_admin import credentials,exceptions,messaging
+
 ERROR_MESSAGE="Invalid JSON"
 
 class WhatsappSaudi(Document):
@@ -342,3 +345,170 @@ def send_bevatel_message(phone: str):
             message=frappe.get_traceback()
         )
         frappe.throw("Failed to send message via Bevatel.")
+
+
+
+@frappe.whitelist(allow_guest=False)
+def send_firebase_notification(title,body,client_token="",topic=""):
+
+
+    if client_token == "" and topic == "":
+            return  Response(json.dumps({"message": "Please provide either client token or topic to send message to Firebase" , "message_sent": 0}), status=417, mimetype='application/json')
+    try:
+
+        try:
+            firebase_admin.get_app()
+        except ValueError:
+
+            ws = frappe.get_single("Whatsapp Saudi")
+
+            if not ws.firebase_notification:
+                frappe.throw("Firebase Notification is disabled in Whatsapp Saudi settings")
+
+
+            firebase_config = {
+                "type": ws.type,
+                "project_id": ws.project_id,
+                "private_key_id": ws.private_key_id,
+                "private_key": ws.private_key.replace("\\n", "\n") if ws.private_key else "",
+                "client_email": ws.client_email,
+                "client_id": ws.client_id,
+                "auth_uri": ws.auth_uri,
+                "token_uri": ws.token_uri,
+                "auth_provider_x509_cert_url": ws.auth_provider_x509_cert_url,
+                "client_x509_cert_url": ws.client_x509_cert_url,
+            }
+
+
+            cred = credentials.Certificate(firebase_config)
+            firebase_admin.initialize_app(cred)
+
+        if client_token != "":
+            message = messaging.Message(
+            notification=messaging.Notification(
+                title=title,
+                body=body,
+            ),
+            token=client_token,
+            )
+
+        if topic != "":
+            message = messaging.Message(
+                notification=messaging.Notification(
+                    title=title,
+                    body=body,
+                ),
+                topic=topic,
+            )
+        return {'message': 'Successfully sent message', 'response': messaging.send(message)}
+    except Exception as e:
+        error_message = str(e)
+        frappe.response['message'] = 'Failed to send firebase message'
+        frappe.response['error'] = error_message
+        frappe.response['http_status_code'] = 500
+        return frappe.response
+
+
+@frappe.whitelist(allow_guest=True)
+def test_firebase_push(
+    title="Test Notification",
+    body="Firebase is working successfully",
+    client_token="",
+    topic=""
+):
+    if not client_token and not topic:
+        frappe.throw("Please provide either client_token or topic")
+
+    try:
+        response = send_firebase_notification(
+            title=title,
+            body=body,
+            client_token=client_token,
+            topic=topic
+        )
+
+        frappe.log_error(
+            title="Firebase Test Success",
+            message=f"""
+Firebase test notification sent successfully
+
+Title: {title}
+Body: {body}
+Client Token: {client_token or "N/A"}
+Topic: {topic or "N/A"}
+Firebase Response: {response}
+"""
+        )
+
+        return {
+            "status": "success",
+            "title": title,
+            "body": body,
+            "client_token": client_token,
+            "topic": topic,
+            "firebase_response": response
+        }
+
+    except Exception:
+        error_trace = frappe.get_traceback()
+
+        frappe.log_error(
+            title="Firebase Test Failed",
+            message=f"""
+Firebase test notification failed
+
+Title: {title}
+Body: {body}
+Client Token: {client_token or "N/A"}
+Topic: {topic or "N/A"}
+
+Error:
+{error_trace}
+"""
+        )
+
+        return {
+            "status": "failed",
+            "title": title,
+            "body": body,
+            "client_token": client_token,
+            "topic": topic,
+            "error": error_trace
+        }
+
+
+@frappe.whitelist(allow_guest=False)
+def get_or_update_employee_topic(employee, token=None):
+
+
+    if not frappe.db.exists("Employee", employee):
+        frappe.throw("Employee not found")
+
+
+    employee_doc = frappe.get_doc("Employee", employee)
+
+    topics = []
+
+    if employee_doc.topic_table:
+        for row in employee_doc.topic_table:
+            if row.topic:
+                topics.append(row.topic)
+
+    token_updated = False
+
+    if token:
+        new_token = token.strip()
+        current_token = (employee_doc.token or "").strip()
+
+
+        if new_token != current_token:
+            employee_doc.db_set("token", new_token)
+            token_updated = True
+
+    return {
+        "status": "success",
+        "employee": employee,
+        "topics": topics,
+        "token_updated": token_updated,
+        "message": "Token updated successfully" if token_updated else "Topics fetched successfully"
+    }
