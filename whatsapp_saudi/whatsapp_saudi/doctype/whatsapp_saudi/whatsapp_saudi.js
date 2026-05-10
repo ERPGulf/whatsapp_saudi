@@ -2,7 +2,7 @@ frappe.ui.form.on("Whatsapp Saudi", {
     refresh(frm) {
         frm.add_custom_button(__("Send Test Message"), function () {
 
-            // ✅ Firebase only (ignore WhatsApp provider completely)
+
             if (frm.doc.firebase_notification) {
 
                 if (!frm.doc.client_token) {
@@ -36,22 +36,22 @@ frappe.ui.form.on("Whatsapp Saudi", {
                     }
                 });
 
-                return; // ✅ stop here, do NOT validate WhatsApp provider
+                return;
             }
 
-            // ✅ Only check provider if Firebase is OFF
+
             if (!frm.doc.whatsapp_provider) {
                 frappe.msgprint(__("Please select a WhatsApp Provider."));
                 return;
             }
 
-            // ✅ Provider credential validation
+
             if (!areCredentialsValid(frm)) {
                 frappe.msgprint(__("Please fill all required details correctly."));
                 return;
             }
 
-            // ✅ Rasayel
+
             if (frm.doc.whatsapp_provider === "Rasayel") {
 
                 frm.call({
@@ -65,7 +65,7 @@ frappe.ui.form.on("Whatsapp Saudi", {
 
             }
 
-            // ✅ WhatsApp.net
+
             else if (frm.doc.whatsapp_provider === "Whats.net") {
 
                 frm.call({
@@ -83,7 +83,7 @@ frappe.ui.form.on("Whatsapp Saudi", {
 
             }
 
-            // ✅ Bevatel
+
             else if (frm.doc.whatsapp_provider === "Bevatel") {
 
                 frm.call({
@@ -104,12 +104,12 @@ frappe.ui.form.on("Whatsapp Saudi", {
 
 function areCredentialsValid(frm) {
 
-    // ✅ Firebase enabled = skip all provider checks
+
     if (frm.doc.firebase_notification) {
         return !!frm.doc.client_token;
     }
 
-    // ✅ Rasayel
+
     if (frm.doc.whatsapp_provider === "Rasayel") {
         return !!(
             frm.doc.file_upload &&
@@ -119,7 +119,7 @@ function areCredentialsValid(frm) {
         );
     }
 
-    // ✅ WhatsApp.net
+
     if (frm.doc.whatsapp_provider === "Whats.net") {
         const expectedFormat = /^https:\/\/api\.4whats\.net\/sendFile$/;
 
@@ -132,7 +132,7 @@ function areCredentialsValid(frm) {
         );
     }
 
-    // ✅ Bevatel
+
     if (frm.doc.whatsapp_provider === "Bevatel") {
         return !!frm.doc.to_number;
     }

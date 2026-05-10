@@ -359,8 +359,28 @@ def send_firebase_notification(title,body,client_token="",topic=""):
         try:
             firebase_admin.get_app()
         except ValueError:
-            firebase_path = frappe.get_site_path("private", "firebase.json")
-            cred = credentials.Certificate(firebase_path)
+
+            ws = frappe.get_single("Whatsapp Saudi")
+
+            if not ws.firebase_notification:
+                frappe.throw("Firebase Notification is disabled in Whatsapp Saudi settings")
+
+
+            firebase_config = {
+                "type": ws.type,
+                "project_id": ws.project_id,
+                "private_key_id": ws.private_key_id,
+                "private_key": ws.private_key.replace("\\n", "\n") if ws.private_key else "",
+                "client_email": ws.client_email,
+                "client_id": ws.client_id,
+                "auth_uri": ws.auth_uri,
+                "token_uri": ws.token_uri,
+                "auth_provider_x509_cert_url": ws.auth_provider_x509_cert_url,
+                "client_x509_cert_url": ws.client_x509_cert_url,
+            }
+
+
+            cred = credentials.Certificate(firebase_config)
             firebase_admin.initialize_app(cred)
 
         if client_token != "":
@@ -455,3 +475,40 @@ Error:
             "topic": topic,
             "error": error_trace
         }
+
+
+@frappe.whitelist(allow_guest=False)
+def get_or_update_employee_topic(employee, token=None):
+
+
+    if not frappe.db.exists("Employee", employee):
+        frappe.throw("Employee not found")
+
+
+    employee_doc = frappe.get_doc("Employee", employee)
+
+    topics = []
+
+    if employee_doc.topic_table:
+        for row in employee_doc.topic_table:
+            if row.topic:
+                topics.append(row.topic)
+
+    token_updated = False
+
+    if token:
+        new_token = token.strip()
+        current_token = (employee_doc.token or "").strip()
+
+
+        if new_token != current_token:
+            employee_doc.db_set("token", new_token)
+            token_updated = True
+
+    return {
+        "status": "success",
+        "employee": employee,
+        "topics": topics,
+        "token_updated": token_updated,
+        "message": "Token updated successfully" if token_updated else "Topics fetched successfully"
+    }

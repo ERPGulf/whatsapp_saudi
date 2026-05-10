@@ -33,7 +33,18 @@
   "language",
   "fcm_tab",
   "client_token",
-  "firebase_notification"
+  "firebase_notification",
+  "type",
+  "project_id",
+  "private_key_id",
+  "private_key",
+  "client_email",
+  "client_id",
+  "auth_uri",
+  "token_uri",
+  "auth_provider_x509_cert_url",
+  "client_x509_cert_url",
+  "universe_domain"
  ],
  "fields": [
   {
@@ -175,12 +186,67 @@
    "fieldname": "firebase_notification",
    "fieldtype": "Check",
    "label": "Firebase Notification"
+  },
+  {
+   "fieldname": "type",
+   "fieldtype": "Data",
+   "label": "Type"
+  },
+  {
+   "fieldname": "project_id",
+   "fieldtype": "Data",
+   "label": "Project Id"
+  },
+  {
+   "fieldname": "private_key_id",
+   "fieldtype": "Data",
+   "label": "Private Key Id"
+  },
+  {
+   "fieldname": "private_key",
+   "fieldtype": "Small Text",
+   "label": "Private Key "
+  },
+  {
+   "fieldname": "client_email",
+   "fieldtype": "Data",
+   "label": "Client Email"
+  },
+  {
+   "fieldname": "client_id",
+   "fieldtype": "Data",
+   "label": "Client Id"
+  },
+  {
+   "fieldname": "auth_uri",
+   "fieldtype": "Data",
+   "label": "Auth Uri"
+  },
+  {
+   "fieldname": "token_uri",
+   "fieldtype": "Data",
+   "label": "Token Uri "
+  },
+  {
+   "fieldname": "auth_provider_x509_cert_url",
+   "fieldtype": "Data",
+   "label": "Auth Provider x509 Cert Url"
+  },
+  {
+   "fieldname": "client_x509_cert_url",
+   "fieldtype": "Data",
+   "label": "Client x509 Cert Url"
+  },
+  {
+   "fieldname": "universe_domain",
+   "fieldtype": "Data",
+   "label": "Universe Domain"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-05-09 08:53:13.852547",
+ "modified": "2026-05-10 07:24:35.061110",
  "modified_by": "Administrator",
  "module": "Whatsapp Saudi",
  "name": "Whatsapp Saudi",
