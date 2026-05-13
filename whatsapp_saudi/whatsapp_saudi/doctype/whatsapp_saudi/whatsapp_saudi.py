@@ -478,37 +478,54 @@ Error:
 
 
 @frappe.whitelist(allow_guest=False)
-def get_or_update_employee_topic(employee, token=None):
+def get_or_update_employee_token(employee, token=None):
+    try:
+
+        if not frappe.db.exists("Employee", employee):
+            frappe.throw("Employee not found")
 
 
-    if not frappe.db.exists("Employee", employee):
-        frappe.throw("Employee not found")
+        employee_doc = frappe.get_doc("Employee", employee)
+
+        topics = []
+
+        if employee_doc.custom_topic_table:
+            for row in employee_doc.custom_topic_table:
+                if row.topic:
+                    topics.append(row.topic)
+
+        token_updated = False
+
+        if token:
+            new_token = token.strip()
+            current_token = (employee_doc.custom_token or "").strip()
 
 
-    employee_doc = frappe.get_doc("Employee", employee)
+            if new_token != current_token:
+                employee_doc.db_set("custom_token", new_token)
+                token_updated = True
 
-    topics = []
+        data= {
+            "employee": employee,
+            "topics": topics,
+            "token_updated": token_updated,
 
-    if employee_doc.topic_table:
-        for row in employee_doc.topic_table:
-            if row.topic:
-                topics.append(row.topic)
-
-    token_updated = False
-
-    if token:
-        new_token = token.strip()
-        current_token = (employee_doc.token or "").strip()
-
-
-        if new_token != current_token:
-            employee_doc.db_set("token", new_token)
-            token_updated = True
-
-    return {
-        "status": "success",
-        "employee": employee,
-        "topics": topics,
-        "token_updated": token_updated,
-        "message": "Token updated successfully" if token_updated else "Topics fetched successfully"
-    }
+        }
+        return Response(
+                    json.dumps({
+                    "data": data
+                    }),
+                    status=200,
+                    mimetype="application/json"
+                )
+    except Exception as e:
+        error_message = str(e)
+        frappe.log_error(
+            title="Get/Update Employee Topic Failed",
+            message=f"Employee: {employee}\nError: {error_message}"
+        )
+        return Response(
+            json.dumps({"error": error_message}),
+            status=500,
+            mimetype="application/json"
+        )
