@@ -479,10 +479,12 @@ Error:
 
 
 @frappe.whitelist(allow_guest=False)
-def get_or_update_employee_token(employee, token=None):
+def get_or_update_employee_token(token=None):
     try:
+        user=frappe.session.user
+        employee = frappe.db.get_value("Employee", {"user_id": user})
 
-        if not frappe.db.exists("Employee", employee):
+        if not employee:
             frappe.throw("Employee not found")
 
 
