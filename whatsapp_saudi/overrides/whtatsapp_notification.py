@@ -857,7 +857,7 @@ class ERPGulfNotification(Notification):
 
                 firebase_data.setdefault(
                     "screen",
-                    "announcement"
+                    "Announcement"
                 )
 
             elif client_token:
@@ -869,7 +869,7 @@ class ERPGulfNotification(Notification):
 
                 firebase_data.setdefault(
                     "screen",
-                    "notification"
+                    "Notification"
                 )
 
 
