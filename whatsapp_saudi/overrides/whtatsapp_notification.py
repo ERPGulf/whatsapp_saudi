@@ -806,7 +806,18 @@ class ERPGulfNotification(Notification):
 
 
             try:
-                payload = json.loads(msg_block)
+                def escape_body_newlines(match):
+                    content = match.group(1)
+                    content = content.replace("\n", "\\n").replace("\r", "")
+                    return f'"body":"{content}"'
+
+                fixed_msg_block = re.sub(
+                    r'"body"\s*:\s*"(.*?)"',
+                    escape_body_newlines,
+                    msg_block,
+                    flags=re.DOTALL
+                )
+                payload = json.loads(fixed_msg_block)
             except Exception:
                 frappe.log_error(
                     title="Firebase Notification JSON Parse Error",
