@@ -3,6 +3,7 @@ from whatsapp_saudi.overrides.whtatsapp_notification import normalize_phone
 import requests
 import frappe
 import logging
+import json
 import io
 import base64
 from frappe.utils import now
