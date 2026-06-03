@@ -799,6 +799,9 @@ class ERPGulfNotification(Notification):
 
     def send_firebase_message(self, doc, context):
         try:
+            import json
+            from firebase_admin import messaging
+
             self.initialize_firebase()
             msg_block = frappe.render_template(self.message, context)
             try:
@@ -837,8 +840,37 @@ class ERPGulfNotification(Notification):
                 }
 
 
+<<<<<<< HEAD
             message_data = payload.get("message", {})
 
+=======
+            try:
+                def escape_body_newlines(match):
+                    content = match.group(1)
+                    content = content.replace("\n", "\\n").replace("\r", "")
+                    return f'"body":"{content}"'
+
+                fixed_msg_block = re.sub(
+                    r'"body"\s*:\s*"(.*?)"',
+                    escape_body_newlines,
+                    msg_block,
+                    flags=re.DOTALL
+                )
+                payload = json.loads(fixed_msg_block)
+            except Exception:
+                frappe.log_error(
+                    title="Firebase Notification JSON Parse Error",
+                    message=f"Failed to parse Notification Message as JSON.\nMessage Content:\n{msg_block}\nTraceback:\n{frappe.get_traceback()}",
+                )
+                return {
+                    "success": False,
+                    "error": "Notification Message must be valid JSON"
+                }
+
+
+            message_data = payload.get("message", {})
+
+>>>>>>> 15006e8137173d72c426eeac6cf5fb0cc88b4204
             client_token = message_data.get("token")
             topic = message_data.get("topic")
 
@@ -850,7 +882,6 @@ class ERPGulfNotification(Notification):
 
 
             notification_block = message_data.get("notification", {})
-
             title = notification_block.get("title", "")
             body = notification_block.get("body", "")
 
@@ -877,9 +908,11 @@ class ERPGulfNotification(Notification):
             message_args = {}
 
             if client_token:
+
                 message_args["token"] = client_token
 
             if topic:
+
                 message_args["topic"] = topic
 
 
@@ -931,7 +964,7 @@ class ERPGulfNotification(Notification):
             frappe.log_error(
                 title="Firebase Notification Success",
                 message=f"""
-                Firebase notification sent successfully
+                    Firebase notification sent successfully
 
                 Document:
                 {doc.doctype} - {doc.name}
@@ -983,7 +1016,6 @@ class ERPGulfNotification(Notification):
                 "success": False,
                 "error": frappe.get_traceback()
             }
-
 
     def send(self, doc):
         context = {"doc": doc, "alert": self, "comments": None}

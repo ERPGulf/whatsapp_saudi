@@ -3,10 +3,10 @@ from whatsapp_saudi.overrides.whtatsapp_notification import normalize_phone
 import requests
 import frappe
 import logging
+import json
 import io
 import base64
 from frappe.utils import now
-import json
 import time
 from frappe import _
 import firebase_admin
@@ -478,12 +478,22 @@ Error:
         }
 
 
+<<<<<<< HEAD
 @frappe.whitelist(allow_guest=False)
 def get_or_update_employee_token(token=None):
     try:
         user=frappe.session.user
         employee = frappe.db.get_value("Employee", {"user_id": user})
 
+=======
+
+@frappe.whitelist(allow_guest=False)
+def get_or_update_employee_token(token=None):
+    try:
+        user=frappe.session.user
+        employee = frappe.db.get_value("Employee", {"user_id": user})
+
+>>>>>>> 15006e8137173d72c426eeac6cf5fb0cc88b4204
         if not employee:
             frappe.throw("Employee not found")
 
