@@ -793,19 +793,21 @@ class ERPGulfNotification(Notification):
             cred = credentials.Certificate(firebase_config)
             firebase_admin.initialize_app(cred)
 
-
     def send_firebase_message(self, doc, context):
         try:
             import json
+            import re
+            import frappe
             from firebase_admin import messaging
 
             self.initialize_firebase()
 
-
+            # Render template
             msg_block = frappe.render_template(self.message, context)
 
-
+            # Parse JSON safely
             try:
+
                 def escape_body_newlines(match):
                     content = match.group(1)
                     content = content.replace("\n", "\\n").replace("\r", "")
@@ -817,18 +819,29 @@ class ERPGulfNotification(Notification):
                     msg_block,
                     flags=re.DOTALL
                 )
+
                 payload = json.loads(fixed_msg_block)
+
             except Exception:
                 frappe.log_error(
                     title="Firebase Notification JSON Parse Error",
-                    message=f"Failed to parse Notification Message as JSON.\nMessage Content:\n{msg_block}\nTraceback:\n{frappe.get_traceback()}",
+                    message=f"""
+    Failed to parse Notification Message as JSON
+
+    Message Content:
+    {msg_block}
+
+    Traceback:
+    {frappe.get_traceback()}
+    """
                 )
+
                 return {
                     "success": False,
                     "error": "Notification Message must be valid JSON"
                 }
 
-
+            # Extract message block
             message_data = payload.get("message", {})
 
             client_token = message_data.get("token")
@@ -840,70 +853,38 @@ class ERPGulfNotification(Notification):
                     "error": "Either token or topic is required inside message"
                 }
 
-
+            # Notification content
             notification_block = message_data.get("notification", {})
+
             title = notification_block.get("title", "")
             body = notification_block.get("body", "")
 
-
-
+            # Data payload
             raw_data = message_data.get("data", {})
             firebase_data = {}
 
             if isinstance(raw_data, dict):
-
                 firebase_data = {
                     str(k): str(v)
                     for k, v in raw_data.items()
                 }
 
 
-
             if topic:
-
-                firebase_data.setdefault(
-                    "type",
-                    "announcement"
-                )
-
-                firebase_data.setdefault(
-                    "screen",
-                    "Announcement"
-                )
+                firebase_data.setdefault("type", "announcement")
+                firebase_data.setdefault("screen", "Announcement")
 
             elif client_token:
-
-                firebase_data.setdefault(
-                    "type",
-                    "notification"
-                )
-
-                firebase_data.setdefault(
-                    "screen",
-                    "Notification"
-                )
-
-
-
-            android_config = None
-            if message_data.get("android"):
-                android_config = messaging.AndroidConfig(**message_data.get("android"))
-
-
-            apns_config = None
-
-            if message_data.get("apns"):
-                apns_config = messaging.APNSConfig(**message_data.get("apns"))
+                firebase_data.setdefault("type", "notification")
+                firebase_data.setdefault("screen", "Notification")
 
 
             message_args = {}
 
             if client_token:
-
                 message_args["token"] = client_token
 
             if topic:
-
                 message_args["topic"] = topic
 
 
@@ -914,22 +895,36 @@ class ERPGulfNotification(Notification):
                 )
 
 
-
             if firebase_data:
-
                 message_args["data"] = firebase_data
 
 
+            message_args["android"] = messaging.AndroidConfig(
+                priority="high",
+                notification=messaging.AndroidNotification(
+                    sound="default",
+                    channel_id="default",
+                    priority="high"
+                )
+            )
 
-            if android_config:
 
-                message_args["android"] = android_config
-
-
-
-            if apns_config:
-
-                message_args["apns"] = apns_config
+            message_args["apns"] = messaging.APNSConfig(
+                headers={
+                    "apns-priority": "10"
+                },
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(
+                        alert=messaging.ApsAlert(
+                            title=title,
+                            body=body
+                        ),
+                        sound="default",
+                        badge=1,
+                        content_available=True
+                    )
+                )
+            )
 
 
             message = messaging.Message(**message_args)
@@ -938,21 +933,40 @@ class ERPGulfNotification(Notification):
             response = messaging.send(message)
 
 
-
             frappe.log_error(
                 title="Firebase Notification Success",
                 message=f"""
-                    Firebase notification sent successfully
+            Firebase notification sent successfully
 
-                    Document: {doc.doctype} - {doc.name}
-                    Title: {title}
-                    Body: {body}
-                    Client Token: {client_token or "N/A"}
-                    Topic: {topic or "N/A"}
-                    Data: {json.dumps(firebase_data, indent=2)}
-                    Firebase Message ID: {response}
-                    """
-            )
+            Document:
+            {doc.doctype} - {doc.name}
+
+            Title:
+            {title}
+
+            Body:
+            {body}
+
+            Client Token:
+            {client_token or "N/A"}
+
+            Topic:
+            {topic or "N/A"}
+
+            Data:
+            {json.dumps(firebase_data, indent=2)}
+
+            Firebase Message ID:
+            {response}
+            """
+                    )
+            frappe.get_doc({
+                "doctype": "whatsapp saudi success log",
+                "title": title,
+                "message": body,
+                "to_number": client_token or topic or "",
+                "time": frappe.utils.now_datetime()
+            }).insert(ignore_permissions=True)
 
             return {
                 "success": True,
@@ -960,6 +974,7 @@ class ERPGulfNotification(Notification):
             }
 
         except Exception:
+
             frappe.log_error(
                 title="Firebase Notification Failed",
                 message=frappe.get_traceback()
@@ -969,7 +984,6 @@ class ERPGulfNotification(Notification):
                 "success": False,
                 "error": frappe.get_traceback()
             }
-
     def send(self, doc):
         context = {"doc": doc, "alert": self, "comments": None}
 
