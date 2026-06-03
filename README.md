@@ -23,7 +23,6 @@
 - [Webhook Setup](#webhook-setup-for-incoming-messages)
 - [Template Handling](#template-handling-system)
 - [File & Document Sending](#file--document-sending)
-- [IP Whitelisting (Geo-fencing)](#ip-whitelisting-for-geo-fencing)
 - [API Reference](#api-reference)
 - [Author](#author)
 
@@ -269,21 +268,6 @@ Enable **Attach Print** and select a **Print Format** on any Notification config
 A **Send via WhatsApp** button is available directly on the Sales Invoice form. It reads the customer's `custom_whatsapp_number_` field and dispatches the active provider's PDF or PDF/A-3 flow.
 
 ---
-
-## IP Whitelisting for Geo-fencing
-
-If your server uses IP or country-based geo-fencing, you must whitelist the Meta / WhatsApp infrastructure IPs. As of the last update these are:
-
-```
-173.252.64.0/18
-31.13.24.0/21
-31.13.64.0/18
-66.220.144.0/20
-69.63.176.0/20
-129.134.0.0/16
-```
-
-> These ranges may change. Monitor your Nginx or Apache access logs and update the allowlist accordingly if messages stop arriving.
 
 ---
 
