@@ -350,7 +350,7 @@ def send_bevatel_message(phone: str):
 
 
 @frappe.whitelist(allow_guest=False)
-def send_firebase_notification(title,body,client_token="",topic=""):
+def send_firebase_notification(body,client_token="",topic="",title=None):
 
 
     if client_token == "" and topic == "":
