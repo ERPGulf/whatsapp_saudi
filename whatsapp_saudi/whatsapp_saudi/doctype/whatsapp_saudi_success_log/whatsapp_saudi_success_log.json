@@ -25,7 +25,7 @@
   },
   {
    "fieldname": "to_number",
-   "fieldtype": "Data",
+   "fieldtype": "Small Text",
    "label": "To number"
   },
   {
@@ -36,7 +36,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2023-11-07 11:03:29.385778",
+ "modified": "2026-06-03 15:21:21.006760",
  "modified_by": "Administrator",
  "module": "Whatsapp Saudi",
  "name": "whatsapp saudi success log",
@@ -55,6 +55,7 @@
    "write": 1
   }
  ],
+ "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []
