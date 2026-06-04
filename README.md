@@ -159,7 +159,15 @@ After filling in the credentials, click **Send Test Message** to verify connecti
 
 ### 4. Firebase Notifications
 
-Firebase Cloud Messaging credentials are stored directly in the **Whatsapp Saudi** doctype. Enable the **Firebase Notification** toggle first, then fill in the service-account fields:
+#### Step 1 — Configure Firebase credentials in Whatsapp Saudi Settings
+
+Navigate to:
+
+```
+ERPNext → WhatsApp Saudi → Whatsapp Saudi
+```
+
+Enable the **Firebase Notification** toggle, then fill in the service-account fields using values from your Firebase project's JSON key file:
 
 | Field | Description |
 |---|---|
@@ -169,41 +177,118 @@ Firebase Cloud Messaging credentials are stored directly in the **Whatsapp Saudi
 | Private Key | Private key (PEM) from the JSON key file |
 | Client Email | Service account email |
 | Client ID | Service account client ID |
-| Auth URI / Token URI | Google OAuth endpoints |
-| Auth Provider Cert URL | Google auth provider X.509 cert URL |
+| Auth URI | `https://accounts.google.com/o/oauth2/auth` |
+| Token URI | `https://oauth2.googleapis.com/token` |
+| Auth Provider Cert URL | `https://www.googleapis.com/oauth2/v1/certs` |
 | Client Cert URL | Service account X.509 cert URL |
 
-To send a notification through the Frappe **Notification** doctype, set the channel to **Firebase Notification** and structure the **Message** field as JSON:
+Save the document.
+
+---
+
+#### Step 2 — Create a Notification
+
+Navigate to:
+
+```
+ERPNext → Settings → Notification → New
+```
+
+Set the **Channel** field to **Firebase Notification**.
+
+---
+
+#### Step 3 — Set the Document Type
+
+In the **Document Type** field, select the doctype that should trigger this notification (e.g. `Sales Invoice`, `Employee`, `Leave Application`, etc.).
+
+---
+
+#### Step 4 — Add Conditions (Optional)
+
+Use the **Condition** field to filter when the notification fires. This supports Jinja2 expressions evaluated against the triggering document:
+
+```
+doc.status == "Submitted"
+```
+
+If you do not need a condition, leave the field blank — the notification will fire on every save of the selected document type.
+
+---
+
+#### Step 5 — Build the Message JSON
+
+The **Message** field must contain a valid JSON payload.
+
+**Sending to a single user (token-based):**
+
+Use `"token"` and reference the FCM token field from your chosen document type. For example, if the **Employee** doctype stores the token in a field called `custom_fcm_token`:
 
 ```json
 {
   "message": {
     "token": "{{ doc.custom_fcm_token }}",
     "notification": {
-      "title": "Invoice Ready",
-      "body": "Your invoice {{ doc.name }} has been generated."
-    },
-    "data": {
-      "doctype": "Sales Invoice",
-      "docname": "{{ doc.name }}"
+      "title": "Leave Request Update",
+      "body": "{{ doc.employee_name }}, your leave request {{ doc.name }} has been {{ doc.status }}."
     }
   }
 }
 ```
 
-Use `"topic"` instead of `"token"` to broadcast to all subscribed devices:
+**Sending to multiple users (topic-based):**
+
+Use `"topic"` and reference the topic field from your document type. Any employee who has subscribed to that topic will receive the notification:
 
 ```json
 {
   "message": {
-    "topic": "announcements",
+    "topic": "{{ doc.custom_topic }}",
     "notification": {
-      "title": "System Notice",
-      "body": "Scheduled maintenance tonight at 11 PM."
+      "title": "Announcement",
+      "body": "{{ doc.subject }}"
     }
   }
 }
 ```
+
+> The `"body"` field in `"notification"` can also reference a document field — for example `"{{ doc.description }}"` — to pull dynamic content from the triggering document.
+
+---
+
+#### Step 6 — Enable and Save
+
+Tick the **Enabled** checkbox at the top of the Notification form and click **Save**.
+
+---
+
+#### Step 7 — Add Token / Topic to the Document Type
+
+Open the doctype you selected in Step 3 and ensure the following custom fields exist:
+
+| Purpose | Field type | Example field name |
+|---|---|---|
+| FCM device token | Data | `custom_fcm_token` |
+| Topic (optional) | Data / Link | `custom_topic` |
+
+Use the same field names you referenced in the JSON in Step 5.
+if all the data added then save the doc after that the notification will recieve to the employee app.
+
+---
+
+#### How Tokens and Topics Work
+
+**Device Token (single-user notifications)**
+
+- The FCM device token for each user is stored in the **Employee** doctype, under the **User** section, in the **Token** field (`custom_fcm_token` or similar).
+- Whenever a user logs in to the mobile app, their device token is automatically refreshed and saved in their Employee record.
+- Use `"token"` in your JSON payload when the notification should go to one specific user only.
+
+**Topics (multi-user / broadcast notifications)**
+- Topics are managed through a **Topic** child table on the **Employee** doctype.
+- A single employee can be subscribed to multiple topics simultaneously.
+- When an employee subscribes to a topic, they receive every notification that is sent to that topic.
+- Use `"topic"` in your JSON payload to broadcast a notification to all employees who have subscribed to that topic.
 
 > Firebase messages are dispatched via a background queue (`long`) and support both Android (high-priority) and iOS (APNS) configurations automatically.
 
