@@ -1,7 +1,12 @@
 # WhatsApp Saudi
 
-> Multi-provider WhatsApp & Firebase push notification integration for ERPNext / Frappe Framework.
+---
+**Lead Technical Consultant:** Fadi Al-Qassas
+**Focus:** Secure API Gateway Architecture & Automated WhatsApp Business Integration
+---
 
+> Multi-provider WhatsApp & Firebase push notification integration for ERPNext / Frappe Framework.
+...
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./license.txt)
 [![Frappe](https://img.shields.io/badge/Frappe-v15-blue)](https://frappeframework.com)
 [![ERPNext](https://img.shields.io/badge/ERPNext-v15-green)](https://erpnext.com)
