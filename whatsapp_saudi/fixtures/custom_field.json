@@ -1,8 +1,10 @@
 [
  {
+  "alignment": "",
   "allow_in_quick_entry": 0,
   "allow_on_submit": 0,
   "bold": 0,
+  "button_color": "",
   "collapsible": 0,
   "collapsible_depends_on": null,
   "columns": 0,
@@ -26,7 +28,7 @@
   "in_list_view": 0,
   "in_preview": 0,
   "in_standard_filter": 0,
-  "insert_after": "create_user_permission",
+  "insert_after": "create_user_automatically",
   "is_system_generated": 0,
   "is_virtual": 0,
   "label": "Topic Table",
@@ -57,9 +59,11 @@
   "width": null
  },
  {
+  "alignment": "",
   "allow_in_quick_entry": 0,
   "allow_on_submit": 0,
   "bold": 0,
+  "button_color": "",
   "collapsible": 0,
   "collapsible_depends_on": null,
   "columns": 0,
