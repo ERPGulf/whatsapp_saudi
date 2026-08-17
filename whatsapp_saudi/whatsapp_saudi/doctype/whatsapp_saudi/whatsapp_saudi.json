@@ -44,7 +44,10 @@
   "token_uri",
   "auth_provider_x509_cert_url",
   "client_x509_cert_url",
-  "universe_domain"
+  "universe_domain",
+  "otp_testing_tab",
+  "testing",
+  "testing_otp"
  ],
  "fields": [
   {
@@ -241,12 +244,28 @@
    "fieldname": "universe_domain",
    "fieldtype": "Data",
    "label": "Universe Domain"
+  },
+  {
+   "fieldname": "otp_testing_tab",
+   "fieldtype": "Tab Break",
+   "label": "Otp Testing"
+  },
+  {
+   "default": "0",
+   "fieldname": "testing",
+   "fieldtype": "Check",
+   "label": "Testing"
+  },
+  {
+   "fieldname": "testing_otp",
+   "fieldtype": "Data",
+   "label": "Testing Otp"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-05-10 07:24:35.061110",
+ "modified": "2026-06-17 17:17:48.856062",
  "modified_by": "Administrator",
  "module": "Whatsapp Saudi",
  "name": "Whatsapp Saudi",
