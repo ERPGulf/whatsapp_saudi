@@ -1287,6 +1287,55 @@ def send_whatsapp_text(message: str, phone: str):
         return {"success": False, "error": str(e)}
 
 
+@frappe.whitelist()
+def send_bevatel_otp_message(phone: str, otp_code: str):
+    try:
+        doc = frappe.get_doc(DOCNAME)
+        phone_number = normalize_phone_bavatel(phone)
+        payload = {
+            "inbox_id": doc.inbox_id,
+            "contact": {"phone_number": phone_number},
+            "message": {
+                "template": {
+                    "name": doc.template_name,
+                    "language": doc.language or "en",
+                    "parameters": {"body": [otp_code]},
+                }
+            },
+        }
+        headers = {
+            "api_account_id": doc.account_id,
+            "api_access_token": doc.access_token,
+            "Content-Type": Type,
+        }
+        response = requests.post(doc.bavatel_file_url, headers=headers, json=payload, timeout=30)
+        response_data = response.json()
+        results = []
+        log_bevatel_response(response=response, response_data=response_data, phone_number=phone_number, results=results)
+        return results[0] if results else {"status": "error"}
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "Bevatel OTP Send Error")
+        return {"status": "error", "error": str(e)}
+
+
+@frappe.whitelist()
+def send_otp(phone: str, otp_code: str):
+    """Send an OTP via WhatsApp, routing to whichever provider is configured on the Whatsapp Saudi settings."""
+    doc = frappe.get_doc(DOCNAME)
+    provider = doc.whatsapp_provider
+    if provider == "Rasayel":
+        return rasayel_whatsapp_message1(phone, otp_code)
+    elif provider == "Bevatel":
+        return send_bevatel_otp_message(phone, otp_code)
+    else:
+        message = (
+            f"رمز التحقق لتسجيل الدخول هو {otp_code}.\n"
+            "هذا الرمز صالح لمدة 5 دقائق. يُرجى عدم مشاركته مع أي شخص.\n\n"
+            f"Your login verification code is {otp_code}. This code is valid for 5 minutes. Please do not share it with anyone."
+        )
+        return send_whatsapp_text(message, phone)
+
+
 @frappe.whitelist(allow_guest=False)
 def send_firebase_notification(title,body,client_token="",topic=""):
 
