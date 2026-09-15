@@ -269,7 +269,7 @@ def _rasayel_send_file_message(blob_id, channel_id, file_template_id, token, url
     return {"status": "success", "conversation_id": conversation_id, "message": ERROR_MESSAGE3}
 
 
-def _rasayel_resolve_and_send(upload_fn, doctype, docname, print_format):
+def _rasayel_resolve_and_send(upload_fn, doctype, docname, print_format, phone: str | None = None):
     """
     Shared setup for rasayel_whatsapp_file_message_pdf and rasayel_whatsapp_file_message_pdfa3:
     upload PDF → extract blob_id → resolve customer phone → send via _rasayel_send_file_message.
@@ -287,7 +287,8 @@ def _rasayel_resolve_and_send(upload_fn, doctype, docname, print_format):
     if sales_invoice.docstatus == 2:
         frappe.throw(_(ERROR_MESSAGE5))
 
-    phone = frappe.get_doc("Customer", sales_invoice.customer).get("custom_whatsapp_number_")
+    if not phone:
+        phone = frappe.get_doc("Customer", sales_invoice.customer).get("custom_whatsapp_number_")
     if not phone:
         return {"status": "error", "message": "No WhatsApp number found for the customer"}
 
@@ -329,7 +330,7 @@ def _resolve_xml_and_upload(docname, memory_url):
     )
 
 
-def _send_bevatel_pdf_message(doctype: str, docname: str, print_format: str, pdf_url_fn):
+def _send_bevatel_pdf_message(doctype: str, docname: str, print_format: str, pdf_url_fn, phone: str | None = None):
     """
     Shared Bevatel PDF dispatch. pdf_url_fn is a callable that receives (docname, print_format)
     and returns the PDF URL. Used by both send_bevatel_file_template_message_pdf and
@@ -338,7 +339,7 @@ def _send_bevatel_pdf_message(doctype: str, docname: str, print_format: str, pdf
     try:
         doc = frappe.get_doc(doctype, docname)
         pdf_url = pdf_url_fn(docname, print_format)
-        return _send_bevatel_whatsapp(doc, doctype, pdf_url)
+        return _send_bevatel_whatsapp(doc, doctype, pdf_url, phone=phone)
     except Exception:
         frappe.log_error(title=ERROR_MESSAGE4, message=frappe.get_traceback())
         return {"status": "error", "message": ERROR_MESSAGE6}
@@ -1204,9 +1205,9 @@ def rasayel_whatsapp_file_message_pdf(doctype: str, docname: str, print_format: 
 
 
 @frappe.whitelist()
-def rasayel_whatsapp_file_message_pdfa3(doctype: str, docname: str, print_format: str):
+def rasayel_whatsapp_file_message_pdfa3(doctype: str, docname: str, print_format: str, phone: str | None = None):
     try:
-        return _rasayel_resolve_and_send(upload_file_pdfa3, doctype, docname, print_format)
+        return _rasayel_resolve_and_send(upload_file_pdfa3, doctype, docname, print_format, phone)
     except Exception:
         frappe.log_error(frappe.get_traceback(), "Rasayel File Message Error")
         return {"error": "Exception while sending file message"}
@@ -1221,10 +1222,11 @@ def send_bevatel_file_template_message_pdf(doctype: str, docname: str, print_for
 
 
 @frappe.whitelist()
-def send_bevatel_file_template_message_pdf_a3(doctype: str, docname: str, print_format: str):
+def send_bevatel_file_template_message_pdf_a3(doctype: str, docname: str, print_format: str, phone: str | None = None):
     return _send_bevatel_pdf_message(
         doctype, docname, print_format,
         lambda name, fmt: embed_public_file_in_pdf(name, fmt, letterhead=None, language="en"),
+        phone=phone,
     )
 
 
@@ -1245,15 +1247,15 @@ def get_whatsapp_pdf(message: str, docname: str, doctype: str, print_format: str
 
 
 @frappe.whitelist()
-def get_whatsapp_pdf_a3(message: str, docname: str, doctype: str, print_format: str, letterhead: str | None):
+def get_whatsapp_pdf_a3(message: str, docname: str, doctype: str, print_format: str, letterhead: str | None, phone: str | None = None):
     try:
         provider = frappe.get_doc(DOCNAME).whatsapp_provider
         if provider == "Rasayel":
-            return rasayel_whatsapp_file_message_pdfa3(doctype, docname, print_format)
+            return rasayel_whatsapp_file_message_pdfa3(doctype, docname, print_format, phone)
         elif provider == "Bevatel":
-            return send_bevatel_file_template_message_pdf_a3(doctype, docname, print_format)
+            return send_bevatel_file_template_message_pdf_a3(doctype, docname, print_format, phone)
         else:
-            return send_whatsapp_with_pdf_a3(message, docname, doctype, print_format, letterhead)
+            return send_whatsapp_with_pdf_a3(message, docname, doctype, print_format, letterhead, phone=phone)
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Rasayel File Message Error")
         return {"error": str(e)}
