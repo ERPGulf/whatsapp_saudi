@@ -265,7 +265,7 @@ def embed_file_in_pdf(invoice_name: str, print_format: str, letterhead: str | No
 # a security review confirms unauthenticated access is intentional and safe.
 # FIX 1: Added type hints to all arguments
 @frappe.whitelist()
-def send_whatsapp_with_pdf_a3(message: str, docname: str,doctype: str, print_format: str | None, letterhead: str|None, language: str = "en"):
+def send_whatsapp_with_pdf_a3(message: str, docname: str,doctype: str, print_format: str | None, letterhead: str|None, language: str = "en", phone: str | None = None):
     """
     Generate a PDF/A-3 file and send it via WhatsApp.
     """
@@ -291,13 +291,14 @@ def send_whatsapp_with_pdf_a3(message: str, docname: str,doctype: str, print_for
         if sales_invoice.get("docstatus") == 2:
             frappe.throw(_("Document is cancelled"))
 
-        customer = sales_invoice.get("customer")
-        customer_doc = frappe.get_doc("Customer", customer)
-
         url = whatsapp_config.get("file_url")
         instance = whatsapp_config.get("instance_id")
         token = whatsapp_config.get("token")
-        phone = customer_doc.get("custom_whatsapp_number_")
+
+        if not phone:
+            customer = sales_invoice.get("customer")
+            customer_doc = frappe.get_doc("Customer", customer)
+            phone = customer_doc.get("custom_whatsapp_number_")
 
         if not phone:
             # FIX 3: Wrapped user-facing string in _()
@@ -466,7 +467,7 @@ def embed_public_file_in_pdf(invoice_name: str, print_format: str, letterhead: s
         frappe.throw(_("Unexpected error while embedding XML into PDF"))
 
 
-def _send_bevatel_whatsapp(doc, doctype, pdf_url):
+def _send_bevatel_whatsapp(doc, doctype, pdf_url, phone: str | None = None):
     try:
         if not pdf_url:
             # FIX 3: Wrapped user-facing string in _()
@@ -479,7 +480,8 @@ def _send_bevatel_whatsapp(doc, doctype, pdf_url):
         api_access_token = ws_doc.access_token
         inbox_id = ws_doc.inbox_id
 
-        phone = frappe.db.get_value("Contact", doc.contact_person, "mobile_no")
+        if not phone:
+            phone = frappe.db.get_value("Contact", doc.contact_person, "mobile_no")
         if not phone:
             # FIX 3: Wrapped user-facing string in _()
             frappe.throw(_("Customer phone number not found"))
