@@ -396,7 +396,12 @@ class ERPGulfNotification(Notification):
         return generate_pdf_base64_from_bytes(pdf_bytes)
 
     def upload_file(self, doc, context):
-        memory_url = generate_pdf_base64_rasayel(doc.name, self.print_format)
+        # PDF/A-3 (with embedded ZATCA XML) only applies to Sales Invoice;
+        # other doctypes (e.g. Salary Slip) get a normal print PDF.
+        if doc.doctype == "Sales Invoice":
+            memory_url = generate_pdf_base64_rasayel(doc.name, self.print_format)
+        else:
+            memory_url = self.create_pdf(doc)
 
         if not memory_url:
             return {"error": "Failed to generate PDF"}
@@ -663,7 +668,10 @@ class ERPGulfNotification(Notification):
 
     def send_bevatel_file_template_message(self, doc, context):
         try:
-            pdf_a3_url = embed_public_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
+            if doc.doctype == "Sales Invoice":
+                pdf_a3_url = embed_public_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
+            else:
+                pdf_a3_url = bevatel_create_pdf(doc.doctype, doc.name, self.print_format)
             if not pdf_a3_url:
                 frappe.throw(_(ERROR_MESSAGE2))
             return self._send_bevatel_message(doc, context, pdf_a3_url=pdf_a3_url)
@@ -676,16 +684,19 @@ class ERPGulfNotification(Notification):
 
     @frappe.whitelist()
     def send_whatsapp_with_pdf(self, doc: object, context: dict):
-        pdf_info = embed_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
+        if doc.doctype == "Sales Invoice":
+            pdf_info = embed_file_in_pdf(doc.name, self.print_format, letterhead=None, language="en")
 
-        if not pdf_info:
-            frappe.throw(_(ERROR_MESSAGE2))
+            if not pdf_info:
+                frappe.throw(_(ERROR_MESSAGE2))
 
-        file_path = pdf_info.get("file_path")
-        #nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
-        with open(file_path, "rb") as pdf_file:
-            pdf_base64 = base64.b64encode(pdf_file.read()).decode()
-        memory_url = f"data:application/pdf;base64,{pdf_base64}"
+            file_path = pdf_info.get("file_path")
+            #nosemgrep: frappe-semgrep-rules.rules.security.frappe-security-file-traversal
+            with open(file_path, "rb") as pdf_file:
+                pdf_base64 = base64.b64encode(pdf_file.read()).decode()
+            memory_url = f"data:application/pdf;base64,{pdf_base64}"
+        else:
+            memory_url = self.create_pdf(doc)
         recipients = self.get_receiver_list(doc, context)
         for receipt in recipients:
             phoneNumber = self.get_receiver_phone_number(receipt)
