@@ -69,13 +69,18 @@ The app overrides the standard Frappe `Notification` doctype to add a **WhatsApp
 
 ```bash
 bench get-app https://github.com/ERPGulf/whatsapp_saudi.git
+bench get-app https://github.com/ERPGulf/whatsapp_saudi.git
 ```
+
+### 2. Install on your site
 
 ### 2. Install on your site
 
 ```bash
 bench --site your-site-name install-app whatsapp_saudi
 ```
+
+### 3. Migrate and restart
 
 ### 3. Migrate and restart
 
@@ -206,6 +211,10 @@ Use `"topic"` instead of `"token"` to broadcast to all subscribed devices:
 ---
 
 ## Webhook Setup for Incoming Messages
+
+In your **4Whats.net** dashboard, configure the webhook URL to:
+
+```
 
 In your **4Whats.net** dashboard, configure the webhook URL to:
 

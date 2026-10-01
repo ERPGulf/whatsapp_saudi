@@ -248,3 +248,7 @@ doctype_js = {
 override_doctype_class = {
 	"Notification": "whatsapp_saudi.overrides.whtatsapp_notification.ERPGulfNotification"
  }
+
+app_include_js = [
+    "whatsapp_saudi/public/js/uom.js"
+]
