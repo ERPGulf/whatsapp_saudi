@@ -178,6 +178,121 @@ def send_wawp_test_message(phone: str):
 
 
 
+
+
+# API – WAWP Send Sales Invoice PDF
+@frappe.whitelist()
+def send_wawp_invoice_pdf(
+    docname: str,
+    phone: str = None,
+    print_format: str = "Simple Tax Invoice - AR"
+):
+    whatsapp_conf = frappe.get_doc("Whatsapp Saudi")
+
+    instance_id = (whatsapp_conf.wawp_instance_id or "").strip()
+    access_token = whatsapp_conf.get_password("wawp_access_token")
+
+    if not instance_id:
+        frappe.throw(_("WAWP Instance ID is missing."))
+
+    if not access_token:
+        frappe.throw(_("WAWP Access Token is missing."))
+
+    if not frappe.db.exists("Sales Invoice", docname):
+        frappe.throw(
+            _("Sales Invoice {0} does not exist.").format(docname)
+        )
+
+    if not phone:
+        phone = whatsapp_conf.to_number
+
+    phone_number = get_receiver_phone_number(phone)
+
+    phone_number = "".join(
+        ch for ch in str(phone_number or "") if ch.isdigit()
+    )
+
+    if not phone_number:
+        frappe.throw(_("Invalid WhatsApp phone number."))
+
+    # Reuse existing public PDF generator
+    from whatsapp_saudi.overrides.pdf_a3 import bevatel_create_pdf
+
+    pdf_url = bevatel_create_pdf(
+        "Sales Invoice",
+        docname,
+        print_format
+    )
+
+    if not pdf_url or not str(pdf_url).startswith("http"):
+        frappe.throw(_("Could not generate public PDF URL."))
+
+    payload = {
+        "instance_id": instance_id,
+        "access_token": access_token,
+        "chatId": f"{phone_number}@c.us",
+        "file[url]": pdf_url,
+        "file[filename]": f"{docname}.pdf",
+        "file[mimetype]": "application/pdf",
+        "caption": f"فاتورة مركبات إكس رقم {docname}"
+    }
+
+    try:
+        response = requests.post(
+            "https://api.wawp.net/v2/send/pdf",
+            json=payload,
+            timeout=60
+        )
+
+        try:
+            response_data = response.json()
+        except Exception:
+            response_data = {
+                "raw": response.text[:1500]
+            }
+
+        if response.ok:
+
+            frappe.msgprint(
+                _("Invoice PDF sent successfully via WAWP.")
+            )
+
+            return {
+                "status": "success",
+                "invoice": docname,
+                "phone": phone_number,
+                "pdf_url": pdf_url,
+                "http_status": response.status_code,
+                "response": response_data
+            }
+
+        frappe.log_error(
+            title=f"WAWP PDF Failed - {docname} - HTTP {response.status_code}",
+            message=json.dumps(
+                response_data,
+                ensure_ascii=False,
+                indent=2
+            )
+        )
+
+        frappe.throw(
+            _("WAWP PDF send failed (HTTP {0}). Check Error Log.")
+            .format(response.status_code)
+        )
+
+    except requests.RequestException as e:
+
+        frappe.log_error(
+            title=f"WAWP PDF Connection Error - {docname}",
+            message=str(e)
+        )
+
+        frappe.throw(
+            _("Could not connect to WAWP API.")
+        )
+
+
+
 # API – Receive Message
 
 
