@@ -1,3 +1,4 @@
+from pathlib import Path
 from frappe.model.document import Document
 from whatsapp_saudi.overrides.whtatsapp_notification import normalize_phone
 import requests
@@ -218,18 +219,39 @@ def send_wawp_invoice_pdf(
     # Reuse existing public PDF generator
     from whatsapp_saudi.overrides.pdf_a3 import bevatel_create_pdf
 
-    pdf_url = bevatel_create_pdf(
+    pdf = frappe.get_print(
         "Sales Invoice",
         docname,
-        print_format
+        print_format,
+        as_pdf=True
+    )
+
+    temp_filename = (
+        f"wawp_{docname}_{int(time.time())}.pdf"
+    )
+
+    temp_path = frappe.get_site_path(
+        "public",
+        "files",
+        temp_filename
+    )
+
+    with open(temp_path, "wb") as temp_pdf:
+        temp_pdf.write(pdf)
+
+    pdf_url = frappe.utils.get_url(
+        f"/files/{temp_filename}"
     )
 
     if not pdf_url or not str(pdf_url).startswith("http"):
         frappe.throw(_("Could not generate public PDF URL."))
 
-    payload = {
+    params = {
         "instance_id": instance_id,
-        "access_token": access_token,
+        "access_token": access_token
+    }
+
+    payload = {
         "chatId": f"{phone_number}@c.us",
         "file[url]": pdf_url,
         "file[filename]": f"{docname}.pdf",
@@ -240,6 +262,7 @@ def send_wawp_invoice_pdf(
     try:
         response = requests.post(
             "https://api.wawp.net/v2/send/pdf",
+            params=params,
             json=payload,
             timeout=60
         )
@@ -253,6 +276,15 @@ def send_wawp_invoice_pdf(
 
         if response.ok:
 
+            try:
+                if temp_path and Path(temp_path).exists():
+                    Path(temp_path).unlink()
+            except Exception:
+                frappe.log_error(
+                    title=f"WAWP Temp PDF Cleanup Failed - {docname}",
+                    message=frappe.get_traceback()
+                )
+
             frappe.msgprint(
                 _("Invoice PDF sent successfully via WAWP.")
             )
@@ -261,7 +293,6 @@ def send_wawp_invoice_pdf(
                 "status": "success",
                 "invoice": docname,
                 "phone": phone_number,
-                "pdf_url": pdf_url,
                 "http_status": response.status_code,
                 "response": response_data
             }
