@@ -204,8 +204,22 @@ def send_wawp_invoice_pdf(
             _("Sales Invoice {0} does not exist.").format(docname)
         )
 
+    invoice_doc = frappe.get_doc("Sales Invoice", docname)
+
     if not phone:
-        phone = whatsapp_conf.to_number
+        phone = (
+            invoice_doc.contact_mobile
+            or frappe.db.get_value(
+                "Customer",
+                invoice_doc.customer,
+                "mobile_no"
+            )
+        )
+
+    if not phone:
+        frappe.throw(
+            _("No WhatsApp/mobile number found for this customer.")
+        )
 
     phone_number = get_receiver_phone_number(phone)
 
