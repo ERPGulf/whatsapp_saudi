@@ -99,6 +99,84 @@ def get_receiver_phone_number(number):
     return normalize_phone(number)
 
 
+@frappe.whitelist()
+def send_wawp_test_message(phone: str):
+    whatsapp_conf = frappe.get_doc("Whatsapp Saudi")
+
+    instance_id = (whatsapp_conf.wawp_instance_id or "").strip()
+    access_token = whatsapp_conf.get_password("wawp_access_token")
+
+    if not instance_id:
+        frappe.throw(_("WAWP Instance ID is missing."))
+
+    if not access_token:
+        frappe.throw(_("WAWP Access Token is missing."))
+
+    phone_number = get_receiver_phone_number(phone)
+    phone_number = "".join(
+        ch for ch in str(phone_number or "") if ch.isdigit()
+    )
+
+    if not phone_number:
+        frappe.throw(_("Invalid test phone number."))
+
+    payload = {
+        "instance_id": instance_id,
+        "access_token": access_token,
+        "chatId": f"{phone_number}@c.us",
+        "message": "اختبار ربط WAWP مع ERPNext - مركبات إكس"
+    }
+
+    try:
+        response = requests.post(
+            "https://api.wawp.net/v2/send/text",
+            json=payload,
+            timeout=30
+        )
+
+        try:
+            response_data = response.json()
+        except Exception:
+            response_data = {
+                "raw": response.text[:1000]
+            }
+
+        if response.ok:
+            frappe.msgprint(
+                _("WAWP test message sent successfully.")
+            )
+
+            return {
+                "status": "success",
+                "http_status": response.status_code,
+                "response": response_data
+            }
+
+        frappe.log_error(
+            title=f"WAWP Test Failed - HTTP {response.status_code}",
+            message=json.dumps(
+                response_data,
+                ensure_ascii=False,
+                indent=2
+            )
+        )
+
+        frappe.throw(
+            _("WAWP send failed (HTTP {0}). Check Error Log.")
+            .format(response.status_code)
+        )
+
+    except requests.RequestException as e:
+        frappe.log_error(
+            title="WAWP Connection Error",
+            message=str(e)
+        )
+
+        frappe.throw(
+            _("Could not connect to WAWP API.")
+        )
+
+
 
 # API – Receive Message
 

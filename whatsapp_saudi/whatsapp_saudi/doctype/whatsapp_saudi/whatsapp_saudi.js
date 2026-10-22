@@ -97,6 +97,19 @@ frappe.ui.form.on("Whatsapp Saudi", {
 
             }
 
+            else if (frm.doc.whatsapp_provider === "WAWP") {
+
+                frm.call({
+                    method: "whatsapp_saudi.whatsapp_saudi.doctype.whatsapp_saudi.whatsapp_saudi.send_wawp_test_message",
+                    args: {
+                        phone: frm.doc.to_number
+                    },
+                    freeze: true,
+                    freeze_message: __("Sending via WAWP...")
+                });
+
+            }
+
         });
     }
 });
@@ -135,6 +148,14 @@ function areCredentialsValid(frm) {
 
     if (frm.doc.whatsapp_provider === "Bevatel") {
         return !!frm.doc.to_number;
+    }
+
+    if (frm.doc.whatsapp_provider === "WAWP") {
+        return !!(
+            frm.doc.wawp_instance_id &&
+            frm.doc.wawp_access_token &&
+            frm.doc.to_number
+        );
     }
 
     return false;

@@ -31,6 +31,9 @@
   "inbox_id",
   "template_name",
   "language",
+  "wawp_tab",
+  "wawp_instance_id",
+  "wawp_access_token",
   "fcm_tab",
   "client_token",
   "firebase_notification",
@@ -117,7 +120,7 @@
    "fieldname": "whatsapp_provider",
    "fieldtype": "Select",
    "label": " WhatsApp Provider",
-   "options": "Whats.net\nRasayel\nBevatel"
+   "options": "Whats.net\nRasayel\nBevatel\nWAWP"
   },
   {
    "fieldname": "message_template_id",
@@ -260,6 +263,21 @@
    "fieldname": "testing_otp",
    "fieldtype": "Data",
    "label": "Testing Otp"
+  },
+  {
+   "fieldname": "wawp_tab",
+   "fieldtype": "Tab Break",
+   "label": "WAWP"
+  },
+  {
+   "fieldname": "wawp_instance_id",
+   "fieldtype": "Data",
+   "label": "Instance ID"
+  },
+  {
+   "fieldname": "wawp_access_token",
+   "fieldtype": "Password",
+   "label": "Access Token"
   }
  ],
  "index_web_pages_for_search": 1,
