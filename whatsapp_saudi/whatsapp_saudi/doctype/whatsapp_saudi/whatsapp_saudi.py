@@ -265,12 +265,38 @@ def send_wawp_invoice_pdf(
         "access_token": access_token
     }
 
+    customer_name = (
+        invoice_doc.customer_name
+        or invoice_doc.customer
+        or ""
+    )
+
+    total_amount = "{:,.2f}".format(
+        invoice_doc.grand_total or 0
+    )
+
+    currency_text = (
+        "ريال"
+        if (invoice_doc.currency or "").upper() == "SAR"
+        else (invoice_doc.currency or "")
+    )
+
+    caption = (
+        f"عزيزنا العميل {customer_name}،\n\n"
+        f"نرفق لكم فاتورتكم الإلكترونية من مركبات إكس.\n\n"
+        f"رقم الفاتورة: {docname}\n"
+        f"الإجمالي: {total_amount} {currency_text}\n\n"
+        f"نشكر لكم ثقتكم واختياركم مركبات إكس، "
+        f"ويسعدنا خدمتكم دائمًا.\n\n"
+        f"مركبات إكس"
+    )
+
     payload = {
         "chatId": f"{phone_number}@c.us",
         "file[url]": pdf_url,
         "file[filename]": f"{docname}.pdf",
         "file[mimetype]": "application/pdf",
-        "caption": f"فاتورة مركبات إكس رقم {docname}"
+        "caption": caption
     }
 
     try:
