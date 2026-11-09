@@ -47,18 +47,17 @@ function generateAndSendPDF(frm, title, method) {
                 freeze: true,
                 freeze_message: __("Generating PDF & Sending WhatsApp message..."),
                 callback: function (response) {
-                    console.log("Full Response:", response);
-                    console.log("Response Message:", response.message);
-
                     const res = response.message;
+                    const isSuccess = res && res.status === "success";
+                    const msg = (res && res.message)
+                        ? res.message
+                        : (isSuccess ? __('WhatsApp message sent successfully!') : __('Failed to send WhatsApp message.'));
 
-                    const isSuccess = res?.status === "success";
-
-                    if (isSuccess) {
-                        frappe.msgprint(__('WhatsApp message sent successfully!'));
-                    } else {
-                        frappe.msgprint(__('Failed to send WhatsApp message.'));
-                    }
+                    frappe.msgprint({
+                        title: isSuccess ? __('Success') : __('Failed'),
+                        indicator: isSuccess ? 'green' : 'red',
+                        message: __(msg)
+                    });
                 }
             });
 

@@ -614,7 +614,7 @@ def send_bevatel_message(phone: str):
 
 
 @frappe.whitelist(allow_guest=False)
-def send_firebase_notification(title,body,client_token="",topic=""):
+def send_firebase_notification(body,client_token="",topic="",title=None):
 
 
     if client_token == "" and topic == "":
@@ -674,7 +674,7 @@ def send_firebase_notification(title,body,client_token="",topic=""):
         return frappe.response
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def test_firebase_push(
     title="Test Notification",
     body="Firebase is working successfully",
@@ -740,7 +740,6 @@ Error:
             "topic": topic,
             "error": error_trace
         }
-
 
 
 @frappe.whitelist(allow_guest=False)

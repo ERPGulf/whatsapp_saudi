@@ -20,8 +20,10 @@ from whatsapp_saudi.overrides.pdf_a3 import (
 from frappe.core.doctype.role.role import get_info_based_on_role, get_user_info
 from frappe.utils.jinja import render_template
 import firebase_admin
+from firebase_admin import messaging
 from firebase_admin import credentials, messaging
 FIREBASE_CHANNEL = "Firebase Notification"
+CORBIT_SMS_CHANNEL = "Corbit SMS"
 ERROR_MESSAGE = "success: false, reason: API access prohibited or incorrect instanceid or token"
 ERROR_MESSAGE1 = "Failed to close conversation"
 ERROR_MESSAGE2 = "Failed to generate PDF/A-3 file!"
@@ -52,6 +54,8 @@ def log_whatsapp_success(message, phone_number):
         "to_number": phone_number,
         "time": now(),
     }).insert(ignore_permissions=True)
+
+
 
 
 def log_bevatel_response(response, response_data, phone_number, results):
@@ -779,6 +783,13 @@ class ERPGulfNotification(Notification):
         return results
 
 
+    def send_corbit_sms_message(self, doc, context):
+        from whatsapp_saudi.overrides.corbit_sms import render_sms_text, send_corbit_sms_bulk
+
+        message = render_sms_text(self.message, context)
+        recipients = self.get_receiver_list(doc, context)
+        return send_corbit_sms_bulk(recipients, message)
+
     def initialize_firebase(self):
         """Initialize Firebase only once."""
         try:
@@ -838,6 +849,42 @@ class ERPGulfNotification(Notification):
                 frappe.log_error(
                     title="Firebase Notification JSON Parse Error",
                     message=f"""
+                Failed to parse Notification Message as JSON
+
+                Message Content:
+                {msg_block}
+
+                Traceback:
+                {frappe.get_traceback()}
+                """
+                    )
+
+                return {
+                    "success": False,
+                    "error": "Notification Message must be valid JSON"
+                }
+
+
+            try:
+
+                def escape_body_newlines(match):
+                    content = match.group(1)
+                    content = content.replace("\n", "\\n").replace("\r", "")
+                    return f'"body":"{content}"'
+
+                fixed_msg_block = re.sub(
+                    r'"body"\s*:\s*"(.*?)"',
+                    escape_body_newlines,
+                    msg_block,
+                    flags=re.DOTALL
+                )
+
+                payload = json.loads(fixed_msg_block)
+
+            except Exception:
+                frappe.log_error(
+                    title="Firebase Notification JSON Parse Error",
+                    message=f"""
     Failed to parse Notification Message as JSON
 
     Message Content:
@@ -871,7 +918,7 @@ class ERPGulfNotification(Notification):
             title = notification_block.get("title", "")
             body = notification_block.get("body", "")
 
-            # Data payload
+
             raw_data = message_data.get("data", {})
             firebase_data = {}
 
@@ -885,8 +932,12 @@ class ERPGulfNotification(Notification):
             if topic:
                 firebase_data.setdefault("type", "announcement")
                 firebase_data.setdefault("screen", "Announcement")
+                firebase_data.setdefault("type", "announcement")
+                firebase_data.setdefault("screen", "Announcement")
 
             elif client_token:
+                firebase_data.setdefault("type", "notification")
+                firebase_data.setdefault("screen", "Notification")
                 firebase_data.setdefault("type", "notification")
                 firebase_data.setdefault("screen", "Notification")
 
@@ -937,6 +988,32 @@ class ERPGulfNotification(Notification):
                     )
                 )
             )
+            message_args["android"] = messaging.AndroidConfig(
+                priority="high",
+                notification=messaging.AndroidNotification(
+                    sound="default",
+                    channel_id="default",
+                    priority="high"
+                )
+            )
+
+
+            message_args["apns"] = messaging.APNSConfig(
+                headers={
+                    "apns-priority": "10"
+                },
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(
+                        alert=messaging.ApsAlert(
+                            title=title,
+                            body=body
+                        ),
+                        sound="default",
+                        badge=1,
+                        content_available=True
+                    )
+                )
+            )
 
 
             message = messaging.Message(**message_args)
@@ -950,28 +1027,29 @@ class ERPGulfNotification(Notification):
                 message=f"""
             Firebase notification sent successfully
 
-            Document:
-            {doc.doctype} - {doc.name}
+                Document:
+                {doc.doctype} - {doc.name}
 
-            Title:
-            {title}
+                Title:
+                {title}
 
-            Body:
-            {body}
+                Body:
+                {body}
 
-            Client Token:
-            {client_token or "N/A"}
+                Client Token:
+                {client_token or "N/A"}
 
-            Topic:
-            {topic or "N/A"}
+                Topic:
+                {topic or "N/A"}
 
-            Data:
-            {json.dumps(firebase_data, indent=2)}
+                Data:
+                {json.dumps(firebase_data, indent=2)}
 
-            Firebase Message ID:
-            {response}
-            """
-                    )
+                Firebase Message ID:
+                {response}
+                """
+                        )
+
             frappe.get_doc({
                 "doctype": "whatsapp saudi success log",
                 "title": title,
@@ -979,6 +1057,8 @@ class ERPGulfNotification(Notification):
                 "to_number": client_token or topic or "",
                 "time": frappe.utils.now_datetime()
             }).insert(ignore_permissions=True)
+            frappe.msgprint('Message sent successfully')
+
 
             return {
                 "success": True,
@@ -987,10 +1067,12 @@ class ERPGulfNotification(Notification):
 
         except Exception:
 
+
             frappe.log_error(
                 title="Firebase Notification Failed",
                 message=frappe.get_traceback()
             )
+            frappe.msgprint('Failed to send message. Please check the logs for more details.')
 
             return {
                 "success": False,
@@ -1017,6 +1099,21 @@ class ERPGulfNotification(Notification):
             except Exception:
                 frappe.log_error(
                     title="Failed to send Firebase notification",
+                    message=frappe.get_traceback()
+                )
+
+        elif self.channel == CORBIT_SMS_CHANNEL:
+            try:
+                frappe.enqueue(
+                    self.send_corbit_sms_message,
+                    queue="long",
+                    timeout=600,
+                    doc=doc,
+                    context=context
+                )
+            except Exception:
+                frappe.log_error(
+                    title="Failed to send Corbit SMS notification",
                     message=frappe.get_traceback()
                 )
 
@@ -1241,20 +1338,83 @@ def send_bevatel_file_template_message_pdf_a3(doctype: str, docname: str, print_
     )
 
 
+def _normalize_whatsapp_result(result):
+    """Normalize any Rasayel/Bevatel/WhatsApp response to {status, message} for frontend popups."""
+    if not isinstance(result, dict):
+        return {"status": "error", "message": _("Unexpected response from API")}
+    # Already normalized
+    if result.get("status") in ("success", "error"):
+        msg = result.get("message") or (
+            _("WhatsApp message sent successfully!") if result["status"] == "success"
+            else _("Failed to send WhatsApp message")
+        )
+        return {"status": result["status"], "message": msg}
+    # success key (rasayel_whatsapp_file_message returns {"success": True, ...})
+    if result.get("success") is True:
+        return {"status": "success", "message": result.get("message", _("WhatsApp message sent successfully!"))}
+    # error key
+    if "error" in result:
+        raw = result.get("raw", "")
+        detail = ""
+        if raw:
+            try:
+                raw_dict = json.loads(raw) if isinstance(raw, str) else raw
+                errors = raw_dict.get("errors", [])
+                if errors:
+                    detail = "; ".join(e.get("message", "") for e in errors if e.get("message"))
+            except Exception:
+                pass
+        msg = detail or result.get("error") or _("Failed to send WhatsApp message")
+        return {"status": "error", "message": msg}
+    return {"status": "error", "message": _("Failed to send WhatsApp message")}
+
+
+def _normalize_whatsapp_result(result):
+    """Normalize any Rasayel/Bevatel/WhatsApp response to {status, message} for frontend popups."""
+    if not isinstance(result, dict):
+        return {"status": "error", "message": _("Unexpected response from API")}
+    # Already normalized
+    if result.get("status") in ("success", "error"):
+        msg = result.get("message") or (
+            _("WhatsApp message sent successfully!") if result["status"] == "success"
+            else _("Failed to send WhatsApp message")
+        )
+        return {"status": result["status"], "message": msg}
+    # success key (rasayel_whatsapp_file_message returns {"success": True, ...})
+    if result.get("success") is True:
+        return {"status": "success", "message": result.get("message", _("WhatsApp message sent successfully!"))}
+    # error key
+    if "error" in result:
+        raw = result.get("raw", "")
+        detail = ""
+        if raw:
+            try:
+                raw_dict = json.loads(raw) if isinstance(raw, str) else raw
+                errors = raw_dict.get("errors", [])
+                if errors:
+                    detail = "; ".join(e.get("message", "") for e in errors if e.get("message"))
+            except Exception:
+                pass
+        msg = detail or result.get("error") or _("Failed to send WhatsApp message")
+        return {"status": "error", "message": msg}
+    return {"status": "error", "message": _("Failed to send WhatsApp message")}
+
+
 @frappe.whitelist()
 def get_whatsapp_pdf(message: str, docname: str, doctype: str, print_format: str):
     try:
         provider = frappe.get_doc(DOCNAME).whatsapp_provider
         if provider == "Rasayel":
-            return rasayel_whatsapp_file_message_pdf(doctype, docname, print_format)
+            result = rasayel_whatsapp_file_message_pdf(doctype, docname, print_format)
         elif provider == "Bevatel":
             frappe.log_error(title="log1", message="entered")
-            return send_bevatel_file_template_message_pdf(doctype, docname, print_format)
+            result = send_bevatel_file_template_message_pdf(doctype, docname, print_format)
         else:
-            return send_whatsapp_with_pdf1(message, docname, doctype, print_format)
+            result = send_whatsapp_with_pdf1(message, docname, doctype, print_format)
+        return _normalize_whatsapp_result(result)
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Rasayel File Message Error")
-        return {"error": str(e)}
+        return {"status": "error", "message": str(e)}
 
 
 @frappe.whitelist()
@@ -1308,7 +1468,7 @@ def get_whatsapp_pdf_a3(
             )
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Rasayel File Message Error")
-        return {"error": str(e)}
+        return {"status": "error", "message": str(e)}
 
 
 @frappe.whitelist()
@@ -1374,18 +1534,24 @@ def send_bevatel_otp_message(phone: str, otp_code: str):
 def send_otp(phone: str, otp_code: str):
     """Send an OTP via WhatsApp, routing to whichever provider is configured on the Whatsapp Saudi settings."""
     doc = frappe.get_doc(DOCNAME)
+    if doc.get("corbit_enabled") and doc.get("corbit_use_for_otp"):
+        from whatsapp_saudi.overrides.corbit_sms import send_corbit_sms
+        return send_corbit_sms(phone, build_otp_message(otp_code), allow_duplicate=True)
     provider = doc.whatsapp_provider
     if provider == "Rasayel":
         return rasayel_whatsapp_message1(phone, otp_code)
     elif provider == "Bevatel":
         return send_bevatel_otp_message(phone, otp_code)
     else:
-        message = (
-            f"رمز التحقق لتسجيل الدخول هو {otp_code}.\n"
-            "هذا الرمز صالح لمدة 5 دقائق. يُرجى عدم مشاركته مع أي شخص.\n\n"
-            f"Your login verification code is {otp_code}. This code is valid for 5 minutes. Please do not share it with anyone."
-        )
-        return send_whatsapp_text(message, phone)
+        return send_whatsapp_text(build_otp_message(otp_code), phone)
+
+
+def build_otp_message(otp_code):
+    return (
+        f"رمز التحقق لتسجيل الدخول هو {otp_code}.\n"
+        "هذا الرمز صالح لمدة 5 دقائق. يُرجى عدم مشاركته مع أي شخص.\n\n"
+        f"Your login verification code is {otp_code}. This code is valid for 5 minutes. Please do not share it with anyone."
+    )
 
 
 @frappe.whitelist(allow_guest=False)
@@ -1429,7 +1595,7 @@ def send_firebase_notification(title,body,client_token="",topic=""):
         return frappe.response
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def test_firebase_push(
     title="Test Notification",
     body="Firebase is working successfully",

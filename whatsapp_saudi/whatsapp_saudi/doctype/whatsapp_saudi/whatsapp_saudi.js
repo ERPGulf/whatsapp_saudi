@@ -1,5 +1,28 @@
 frappe.ui.form.on("Whatsapp Saudi", {
     refresh(frm) {
+        if (frm.doc.corbit_enabled) {
+            frm.add_custom_button(__("Send Test SMS (Corbit)"), function () {
+                if (frm.is_dirty()) {
+                    frappe.msgprint(__("Please save the settings first."));
+                    return;
+                }
+                frm.call({
+                    method: "whatsapp_saudi.overrides.corbit_sms.test_corbit_sms",
+                    freeze: true,
+                    freeze_message: __("Sending test SMS via Corbit..."),
+                    callback: function (r) {
+                        const res = r.message || {};
+                        frappe.msgprint({
+                            title: res.success ? __("Corbit SMS Sent") : __("Corbit SMS Failed"),
+                            indicator: res.success ? "green" : "red",
+                            message: res.success
+                                ? __("Message ID: {0}", [res.message_id])
+                                : __("{0}: {1}", [res.code || "", res.error || ""])
+                        });
+                    }
+                });
+            });
+        }
         frm.add_custom_button(__("Send Test Message"), function () {
 
 
