@@ -296,10 +296,6 @@ curl -s -X POST "https://api.corbit.sa/api/v1/message-status/<message_id>" \
 In your **4Whats.net** dashboard, configure the webhook URL to:
 
 ```
-
-In your **4Whats.net** dashboard, configure the webhook URL to:
-
-```
 https://your-erpnext-instance.com/api/method/whatsapp_saudi.receive_whatsapp_message
 ```
 
@@ -396,14 +392,14 @@ POST /api/method/<method_path>
 | `whatsapp_saudi.overrides.corbit_sms.send_sms` | Send a plain SMS via Corbit (`phone`, `message`) |
 | `whatsapp_saudi.overrides.corbit_sms.test_corbit_sms` | Send a test SMS to *To Number (for testing)* (System Manager only) |
 
----
+-----
 
 ## Author
 
 **Aysha Sithara**
 Published by [ERPGulf.com](https://erpgulf.com) — support@ERPGulf.com
 
----
+
 
 ###### License
 
