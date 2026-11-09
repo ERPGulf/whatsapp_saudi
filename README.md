@@ -1,12 +1,7 @@
 # WhatsApp Saudi
 
----
-**Lead Technical Consultant:** Fadi Al-Qassas
-**Focus:** Secure API Gateway Architecture & Automated WhatsApp Business Integration
----
+> Multi-provider WhatsApp, SMS (Corbit) & Firebase push notification integration for ERPNext / Frappe Framework.
 
-> Multi-provider WhatsApp & Firebase push notification integration for ERPNext / Frappe Framework.
-...
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./license.txt)
 [![Frappe](https://img.shields.io/badge/Frappe-v15-blue)](https://frappeframework.com)
 [![ERPNext](https://img.shields.io/badge/ERPNext-v15-green)](https://erpnext.com)
@@ -25,9 +20,11 @@
   - [Bevatel](#2-bevatel)
   - [Rasayel](#3-rasayel)
   - [Firebase Notifications](#4-firebase-notifications)
+  - [Corbit SMS](#5-corbit-sms)
 - [Webhook Setup](#webhook-setup-for-incoming-messages)
 - [Template Handling](#template-handling-system)
 - [File & Document Sending](#file--document-sending)
+- [IP Whitelisting (Geo-fencing)](#ip-whitelisting-for-geo-fencing)
 - [API Reference](#api-reference)
 - [Author](#author)
 
@@ -35,9 +32,9 @@
 
 ## Overview
 
-**WhatsApp Saudi** integrates ERPNext with multiple WhatsApp business API providers, enabling automated notifications, document delivery, and incoming message handling — all from within ERPNext. It also supports **Firebase Cloud Messaging (FCM)** for push notifications to Android and iOS apps.
+**WhatsApp Saudi** integrates ERPNext with multiple WhatsApp business API providers, enabling automated notifications, document delivery, and incoming message handling — all from within ERPNext. It also supports **Firebase Cloud Messaging (FCM)** for push notifications to Android and iOS apps, and **Corbit SMS** ([corbit.sa](https://corbit.sa)) for SMS notifications and OTP.
 
-The app overrides the standard Frappe `Notification` doctype to add a **WhatsApp Saudi** channel and a **Firebase Notification** channel alongside the built-in Email/SMS channels.
+The app overrides the standard Frappe `Notification` doctype to add **WhatsApp Saudi**, **Firebase Notification** and **Corbit SMS** channels alongside the built-in Email/SMS channels.
 
 ---
 
@@ -55,6 +52,8 @@ The app overrides the standard Frappe `Notification` doctype to add a **WhatsApp
 | Success logging | Successful sends are recorded in the **WhatsApp Saudi Success Log** doctype |
 | Dynamic templates | Template variables are fetched from ERPNext documents at send time |
 | Saudi phone normalisation | Local 05xxxxxxxx numbers are automatically converted to 9665xxxxxxxx |
+| Corbit SMS channel | Send SMS through the Corbit gateway as a Notification channel, from Python, or via REST API |
+| OTP via SMS | Optionally route `send_otp` through Corbit SMS instead of the WhatsApp provider |
 
 ---
 
@@ -64,6 +63,7 @@ The app overrides the standard Frappe `Notification` doctype to add a **WhatsApp
 - Python **>= 3.10**
 - An active account with at least one supported provider (4Whats.net, Bevatel, or Rasayel)
 - *(Optional)* A Firebase project with a service-account key for push notifications
+- *(Optional)* A Corbit SMS account ([sms.corbit.sa](https://sms.corbit.sa)) with an API token and an approved sender name
 
 ---
 
@@ -73,13 +73,18 @@ The app overrides the standard Frappe `Notification` doctype to add a **WhatsApp
 
 ```bash
 bench get-app https://github.com/ERPGulf/whatsapp_saudi.git
+bench get-app https://github.com/ERPGulf/whatsapp_saudi.git
 ```
+
+### 2. Install on your site
 
 ### 2. Install on your site
 
 ```bash
 bench --site your-site-name install-app whatsapp_saudi
 ```
+
+### 3. Migrate and restart
 
 ### 3. Migrate and restart
 
@@ -164,15 +169,7 @@ After filling in the credentials, click **Send Test Message** to verify connecti
 
 ### 4. Firebase Notifications
 
-#### Step 1 — Configure Firebase credentials in Whatsapp Saudi Settings
-
-Navigate to:
-
-```
-ERPNext → WhatsApp Saudi → Whatsapp Saudi
-```
-
-Enable the **Firebase Notification** toggle, then fill in the service-account fields using values from your Firebase project's JSON key file:
+Firebase Cloud Messaging credentials are stored directly in the **Whatsapp Saudi** doctype. Enable the **Firebase Notification** toggle first, then fill in the service-account fields:
 
 | Field | Description |
 |---|---|
@@ -182,120 +179,115 @@ Enable the **Firebase Notification** toggle, then fill in the service-account fi
 | Private Key | Private key (PEM) from the JSON key file |
 | Client Email | Service account email |
 | Client ID | Service account client ID |
-| Auth URI | `https://accounts.google.com/o/oauth2/auth` |
-| Token URI | `https://oauth2.googleapis.com/token` |
-| Auth Provider Cert URL | `https://www.googleapis.com/oauth2/v1/certs` |
+| Auth URI / Token URI | Google OAuth endpoints |
+| Auth Provider Cert URL | Google auth provider X.509 cert URL |
 | Client Cert URL | Service account X.509 cert URL |
 
-Save the document.
-
----
-
-#### Step 2 — Create a Notification
-
-Navigate to:
-
-```
-ERPNext → Settings → Notification → New
-```
-
-Set the **Channel** field to **Firebase Notification**.
-
----
-
-#### Step 3 — Set the Document Type
-
-In the **Document Type** field, select the doctype that should trigger this notification (e.g. `Sales Invoice`, `Employee`, `Leave Application`, etc.).
-
----
-
-#### Step 4 — Add Conditions (Optional)
-
-Use the **Condition** field to filter when the notification fires. This supports Jinja2 expressions evaluated against the triggering document:
-
-```
-doc.status == "Submitted"
-```
-
-If you do not need a condition, leave the field blank — the notification will fire on every save of the selected document type.
-
----
-
-#### Step 5 — Build the Message JSON
-
-The **Message** field must contain a valid JSON payload.
-
-**Sending to a single user (token-based):**
-
-Use `"token"` and reference the FCM token field from your chosen document type. For example, if the **Employee** doctype stores the token in a field called `custom_fcm_token`:
+To send a notification through the Frappe **Notification** doctype, set the channel to **Firebase Notification** and structure the **Message** field as JSON:
 
 ```json
 {
   "message": {
     "token": "{{ doc.custom_fcm_token }}",
     "notification": {
-      "title": "Leave Request Update",
-      "body": "{{ doc.employee_name }}, your leave request {{ doc.name }} has been {{ doc.status }}."
+      "body": "Your invoice {{ doc.name }} has been generated."
     }
   }
 }
 ```
 
-**Sending to multiple users (topic-based):**
-
-Use `"topic"` and reference the topic field from your document type. Any employee who has subscribed to that topic will receive the notification:
+Use `"topic"` instead of `"token"` to broadcast to all subscribed devices:
 
 ```json
 {
   "message": {
-    "topic": "{{ doc.custom_topic }}",
+    "topic": "announcements",
     "notification": {
-      "title": "Announcement",
-      "body": "{{ doc.subject }}"
+      "title": "System Notice",
+      "body": "Scheduled maintenance tonight at 11 PM."
     }
   }
 }
 ```
 
-> The `"body"` field in `"notification"` can also reference a document field — for example `"{{ doc.description }}"` — to pull dynamic content from the triggering document.
-
----
-
-#### Step 6 — Enable and Save
-
-Tick the **Enabled** checkbox at the top of the Notification form and click **Save**.
-
----
-
-#### Step 7 — Add Token / Topic to the Document Type
-
-Open the doctype you selected in Step 3 and ensure the following custom fields exist:
-
-| Purpose | Field type | Example field name |
-|---|---|---|
-| FCM device token | Data | `custom_fcm_token` |
-| Topic (optional) | Data / Link | `custom_topic` |
-
-Use the same field names you referenced in the JSON in Step 5.
-if all the data added then save the doc after that the notification will recieve to the employee app.
-
----
-
-#### How Tokens and Topics Work
-
-**Device Token (single-user notifications)**
-
-- The FCM device token for each user is stored in the **Employee** doctype, under the **User** section, in the **Token** field (`custom_fcm_token` or similar).
-- Whenever a user logs in to the mobile app, their device token is automatically refreshed and saved in their Employee record.
-- Use `"token"` in your JSON payload when the notification should go to one specific user only.
-
-**Topics (multi-user / broadcast notifications)**
-- Topics are managed through a **Topic** child table on the **Employee** doctype.
-- A single employee can be subscribed to multiple topics simultaneously.
-- When an employee subscribes to a topic, they receive every notification that is sent to that topic.
-- Use `"topic"` in your JSON payload to broadcast a notification to all employees who have subscribed to that topic.
-
 > Firebase messages are dispatched via a background queue (`long`) and support both Android (high-priority) and iOS (APNS) configurations automatically.
+
+---
+
+### 5. Corbit SMS
+
+Corbit SMS ([api.corbit.sa](https://api.corbit.sa)) works **alongside** the selected WhatsApp provider — it does not replace it. Settings are on the **Corbit SMS** tab of the **Whatsapp Saudi** doctype. All fields except *Enable* are hidden until it is ticked.
+
+| Field | Description |
+|---|---|
+| Enable Corbit SMS | Master switch. While off, every send returns a `CONFIG` error |
+| Base URL | `https://api.corbit.sa` — **server address only**. The app appends `/api/v1/send` itself, so do not include the path |
+| API Token | Token from your Corbit account (sms.corbit.sa). Sent as `Authorization: Bearer`, stored encrypted |
+| Sender Name | Must exactly match a sender name **approved** on your Corbit account, otherwise Corbit returns `422` (`اسم المرسل غير مسموح به` — "sender name not allowed") |
+| Send OTP via Corbit SMS | When ticked, `send_otp` sends the OTP by SMS instead of WhatsApp |
+
+After saving, click **Send Test SMS (Corbit)** (System Manager only). It sends to the **To Number (for testing)** field on the Setting tab and shows the Corbit message ID on success, or the error code on failure.
+
+**Supported:**
+- **Notification channel** — set Channel to **Corbit SMS** on any Notification. Recipients work the same as the WhatsApp Saudi channel (Phone fields, owner, role mobile numbers). The message is rendered with Jinja, HTML is stripped, and sending runs in the `long` background queue.
+- **OTP** — `send_otp` routes through Corbit when *Send OTP via Corbit SMS* is ticked (duplicate check bypassed so resends work).
+- **Python / REST API** — see examples below.
+
+**From Python:**
+
+```python
+from whatsapp_saudi.overrides.corbit_sms import send_corbit_sms, send_corbit_sms_bulk
+
+send_corbit_sms("0551234567", "Your invoice is ready")
+send_corbit_sms(phone, otp_text, allow_duplicate=True)          # e.g. OTP resends
+send_corbit_sms_bulk(["0551234567", "+966 55 000 1111"], "Reminder")
+```
+
+**From the REST API:**
+
+```bash
+curl -X POST "https://your-site/api/method/whatsapp_saudi.overrides.corbit_sms.send_sms" \
+  -H "Authorization: token api_key:api_secret" \
+  -H "Content-Type: application/json" \
+  -d '{"phone": "0551234567", "message": "Hello"}'
+```
+
+Every call returns a dict:
+
+```json
+{ "success": true,  "status": "success", "phone": "966551234567", "message_id": "8493f201-…", "delivery_status": "pending" }
+{ "success": false, "status": "error",   "phone": "966551234567", "code": "INSUFFICIENT_BALANCE", "http_status": 402, "error": "…" }
+```
+
+**How Corbit's rules are handled:**
+
+| Rule | Behaviour |
+|---|---|
+| Phone numbers | Normalised (05… → 9665…), non-digits removed, must be 8–15 digits. Invalid numbers return `VALIDATION` and nothing is sent |
+| Message length | Max 1600 characters; longer messages are truncated and the truncation is logged |
+| Duplicate protection | Corbit rejects the same text to the same number within 1 hour (`409`). Notifications keep this protection; OTP and test sends bypass it with `X-Allow-Duplicate: true` |
+| Rate limits / outages | On `429` / `502` / `503`, retried once if `Retry-After` is 10 seconds or less |
+| Bulk | One `/send` call per number; numbers that are identical after normalising are sent once |
+| Idempotency | Optional `idempotency_key` argument sets the `Idempotency-Key` header |
+
+**Logging:** successful sends are recorded in **WhatsApp Saudi Success Log** (title *Corbit SMS sent*, with the Corbit message ID and status). Failures go to **Error Log** titled *Corbit SMS failed (CODE)* with the full Corbit response.
+
+**Troubleshooting:**
+
+| Error | Cause / fix |
+|---|---|
+| `404 Not found.` | Base URL contains `/api/v1/send`. Set it to `https://api.corbit.sa` only |
+| `NETWORK` / name resolution error | Typo in Base URL (e.g. stray `.` or space) |
+| `422` sender name not allowed | Sender name is not approved on the Corbit account. List approved names with `GET /api/v1/sendernames` |
+| `402 INSUFFICIENT_BALANCE` | Top up the Corbit account |
+| Sent (`pending`) but status later `failed` | Corbit accepted the request but it was not delivered — often an international (non-Saudi) number not enabled for the account. Contact Corbit support with the message ID |
+
+Check delivery status of a message directly with Corbit:
+
+```bash
+curl -s -X POST "https://api.corbit.sa/api/v1/message-status/<message_id>" \
+  -H "Authorization: Bearer <corbit_token>"
+```
 
 ---
 
@@ -359,6 +351,21 @@ A **Send via WhatsApp** button is available directly on the Sales Invoice form. 
 
 ---
 
+## IP Whitelisting for Geo-fencing
+
+If your server uses IP or country-based geo-fencing, you must whitelist the Meta / WhatsApp infrastructure IPs. As of the last update these are:
+
+```
+173.252.64.0/18
+31.13.24.0/21
+31.13.64.0/18
+66.220.144.0/20
+69.63.176.0/20
+129.134.0.0/16
+```
+
+> These ranges may change. Monitor your Nginx or Apache access logs and update the allowlist accordingly if messages stop arriving.
+
 ---
 
 ## API Reference
@@ -381,15 +388,18 @@ POST /api/method/<method_path>
 | `whatsapp_saudi.overrides.whtatsapp_notification.send_bevatel_file_template_message_pdf_a3` | Send a PDF/A-3 via Bevatel template |
 | `whatsapp_saudi.overrides.whtatsapp_notification.send_firebase_notification` | Send a Firebase push notification by token or topic |
 | `whatsapp_saudi.overrides.whtatsapp_notification.test_firebase_push` | Test Firebase connectivity (guest-allowed) |
+| `whatsapp_saudi.overrides.whtatsapp_notification.send_otp` | Send an OTP — via Corbit SMS if *Send OTP via Corbit SMS* is ticked, otherwise via the active WhatsApp provider |
+| `whatsapp_saudi.overrides.corbit_sms.send_sms` | Send a plain SMS via Corbit (`phone`, `message`) |
+| `whatsapp_saudi.overrides.corbit_sms.test_corbit_sms` | Send a test SMS to *To Number (for testing)* (System Manager only) |
 
----
+-----
 
 ## Author
 
 **Aysha Sithara**
 Published by [ERPGulf.com](https://erpgulf.com) — support@ERPGulf.com
 
----
+
 
 ###### License
 
