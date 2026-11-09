@@ -1418,15 +1418,54 @@ def get_whatsapp_pdf(message: str, docname: str, doctype: str, print_format: str
 
 
 @frappe.whitelist()
-def get_whatsapp_pdf_a3(message: str, docname: str, doctype: str, print_format: str, letterhead: str | None, phone: str | None = None):
+def get_whatsapp_pdf_a3(
+    message: str,
+    docname: str,
+    doctype: str,
+    print_format: str,
+    letterhead: str | None = None,
+    phone: str | None = None,
+    language: str | None = None
+):
     try:
         provider = frappe.get_doc(DOCNAME).whatsapp_provider
+
         if provider == "Rasayel":
-            return rasayel_whatsapp_file_message_pdfa3(doctype, docname, print_format, phone)
+            return rasayel_whatsapp_file_message_pdfa3(
+                doctype,
+                docname,
+                print_format,
+                phone
+            )
+
         elif provider == "Bevatel":
-            return send_bevatel_file_template_message_pdf_a3(doctype, docname, print_format, phone)
+            return send_bevatel_file_template_message_pdf_a3(
+                doctype,
+                docname,
+                print_format,
+                phone
+            )
+
+        elif provider == "WAWP":
+            from whatsapp_saudi.whatsapp_saudi.doctype.whatsapp_saudi.whatsapp_saudi import (
+                send_wawp_invoice_pdf
+            )
+
+            return send_wawp_invoice_pdf(
+                docname=docname,
+                phone=phone,
+                print_format=print_format
+            )
+
         else:
-            return send_whatsapp_with_pdf_a3(message, docname, doctype, print_format, letterhead, phone=phone)
+            return send_whatsapp_with_pdf_a3(
+                message,
+                docname,
+                doctype,
+                print_format,
+                letterhead,
+                phone=phone
+            )
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Rasayel File Message Error")
         return {"status": "error", "message": str(e)}
