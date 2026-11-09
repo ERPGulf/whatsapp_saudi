@@ -1,6 +1,6 @@
 # WhatsApp Saudi
 
-> Multi-provider WhatsApp & Firebase push notification integration for ERPNext / Frappe Framework.
+> Multi-provider WhatsApp, SMS (Corbit) & Firebase push notification integration for ERPNext / Frappe Framework.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./license.txt)
 [![Frappe](https://img.shields.io/badge/Frappe-v15-blue)](https://frappeframework.com)
@@ -20,6 +20,7 @@
   - [Bevatel](#2-bevatel)
   - [Rasayel](#3-rasayel)
   - [Firebase Notifications](#4-firebase-notifications)
+  - [Corbit SMS](#5-corbit-sms)
 - [Webhook Setup](#webhook-setup-for-incoming-messages)
 - [Template Handling](#template-handling-system)
 - [File & Document Sending](#file--document-sending)
@@ -31,9 +32,9 @@
 
 ## Overview
 
-**WhatsApp Saudi** integrates ERPNext with multiple WhatsApp business API providers, enabling automated notifications, document delivery, and incoming message handling — all from within ERPNext. It also supports **Firebase Cloud Messaging (FCM)** for push notifications to Android and iOS apps.
+**WhatsApp Saudi** integrates ERPNext with multiple WhatsApp business API providers, enabling automated notifications, document delivery, and incoming message handling — all from within ERPNext. It also supports **Firebase Cloud Messaging (FCM)** for push notifications to Android and iOS apps, and **Corbit SMS** ([corbit.sa](https://corbit.sa)) for SMS notifications and OTP.
 
-The app overrides the standard Frappe `Notification` doctype to add a **WhatsApp Saudi** channel and a **Firebase Notification** channel alongside the built-in Email/SMS channels.
+The app overrides the standard Frappe `Notification` doctype to add **WhatsApp Saudi**, **Firebase Notification** and **Corbit SMS** channels alongside the built-in Email/SMS channels.
 
 ---
 
@@ -51,6 +52,8 @@ The app overrides the standard Frappe `Notification` doctype to add a **WhatsApp
 | Success logging | Successful sends are recorded in the **WhatsApp Saudi Success Log** doctype |
 | Dynamic templates | Template variables are fetched from ERPNext documents at send time |
 | Saudi phone normalisation | Local 05xxxxxxxx numbers are automatically converted to 9665xxxxxxxx |
+| Corbit SMS channel | Send SMS through the Corbit gateway as a Notification channel, from Python, or via REST API |
+| OTP via SMS | Optionally route `send_otp` through Corbit SMS instead of the WhatsApp provider |
 
 ---
 
@@ -60,6 +63,7 @@ The app overrides the standard Frappe `Notification` doctype to add a **WhatsApp
 - Python **>= 3.10**
 - An active account with at least one supported provider (4Whats.net, Bevatel, or Rasayel)
 - *(Optional)* A Firebase project with a service-account key for push notifications
+- *(Optional)* A Corbit SMS account ([sms.corbit.sa](https://sms.corbit.sa)) with an API token and an approved sender name
 
 ---
 
@@ -210,6 +214,83 @@ Use `"topic"` instead of `"token"` to broadcast to all subscribed devices:
 
 ---
 
+### 5. Corbit SMS
+
+Corbit SMS ([api.corbit.sa](https://api.corbit.sa)) works **alongside** the selected WhatsApp provider — it does not replace it. Settings are on the **Corbit SMS** tab of the **Whatsapp Saudi** doctype. All fields except *Enable* are hidden until it is ticked.
+
+| Field | Description |
+|---|---|
+| Enable Corbit SMS | Master switch. While off, every send returns a `CONFIG` error |
+| Base URL | `https://api.corbit.sa` — **server address only**. The app appends `/api/v1/send` itself, so do not include the path |
+| API Token | Token from your Corbit account (sms.corbit.sa). Sent as `Authorization: Bearer`, stored encrypted |
+| Sender Name | Must exactly match a sender name **approved** on your Corbit account, otherwise Corbit returns `422` (`اسم المرسل غير مسموح به` — "sender name not allowed") |
+| Send OTP via Corbit SMS | When ticked, `send_otp` sends the OTP by SMS instead of WhatsApp |
+
+After saving, click **Send Test SMS (Corbit)** (System Manager only). It sends to the **To Number (for testing)** field on the Setting tab and shows the Corbit message ID on success, or the error code on failure.
+
+**Supported:**
+- **Notification channel** — set Channel to **Corbit SMS** on any Notification. Recipients work the same as the WhatsApp Saudi channel (Phone fields, owner, role mobile numbers). The message is rendered with Jinja, HTML is stripped, and sending runs in the `long` background queue.
+- **OTP** — `send_otp` routes through Corbit when *Send OTP via Corbit SMS* is ticked (duplicate check bypassed so resends work).
+- **Python / REST API** — see examples below.
+
+**From Python:**
+
+```python
+from whatsapp_saudi.overrides.corbit_sms import send_corbit_sms, send_corbit_sms_bulk
+
+send_corbit_sms("0551234567", "Your invoice is ready")
+send_corbit_sms(phone, otp_text, allow_duplicate=True)          # e.g. OTP resends
+send_corbit_sms_bulk(["0551234567", "+966 55 000 1111"], "Reminder")
+```
+
+**From the REST API:**
+
+```bash
+curl -X POST "https://your-site/api/method/whatsapp_saudi.overrides.corbit_sms.send_sms" \
+  -H "Authorization: token api_key:api_secret" \
+  -H "Content-Type: application/json" \
+  -d '{"phone": "0551234567", "message": "Hello"}'
+```
+
+Every call returns a dict:
+
+```json
+{ "success": true,  "status": "success", "phone": "966551234567", "message_id": "8493f201-…", "delivery_status": "pending" }
+{ "success": false, "status": "error",   "phone": "966551234567", "code": "INSUFFICIENT_BALANCE", "http_status": 402, "error": "…" }
+```
+
+**How Corbit's rules are handled:**
+
+| Rule | Behaviour |
+|---|---|
+| Phone numbers | Normalised (05… → 9665…), non-digits removed, must be 8–15 digits. Invalid numbers return `VALIDATION` and nothing is sent |
+| Message length | Max 1600 characters; longer messages are truncated and the truncation is logged |
+| Duplicate protection | Corbit rejects the same text to the same number within 1 hour (`409`). Notifications keep this protection; OTP and test sends bypass it with `X-Allow-Duplicate: true` |
+| Rate limits / outages | On `429` / `502` / `503`, retried once if `Retry-After` is 10 seconds or less |
+| Bulk | One `/send` call per number; numbers that are identical after normalising are sent once |
+| Idempotency | Optional `idempotency_key` argument sets the `Idempotency-Key` header |
+
+**Logging:** successful sends are recorded in **WhatsApp Saudi Success Log** (title *Corbit SMS sent*, with the Corbit message ID and status). Failures go to **Error Log** titled *Corbit SMS failed (CODE)* with the full Corbit response.
+
+**Troubleshooting:**
+
+| Error | Cause / fix |
+|---|---|
+| `404 Not found.` | Base URL contains `/api/v1/send`. Set it to `https://api.corbit.sa` only |
+| `NETWORK` / name resolution error | Typo in Base URL (e.g. stray `.` or space) |
+| `422` sender name not allowed | Sender name is not approved on the Corbit account. List approved names with `GET /api/v1/sendernames` |
+| `402 INSUFFICIENT_BALANCE` | Top up the Corbit account |
+| Sent (`pending`) but status later `failed` | Corbit accepted the request but it was not delivered — often an international (non-Saudi) number not enabled for the account. Contact Corbit support with the message ID |
+
+Check delivery status of a message directly with Corbit:
+
+```bash
+curl -s -X POST "https://api.corbit.sa/api/v1/message-status/<message_id>" \
+  -H "Authorization: Bearer <corbit_token>"
+```
+
+---
+
 ## Webhook Setup for Incoming Messages
 
 In your **4Whats.net** dashboard, configure the webhook URL to:
@@ -311,6 +392,9 @@ POST /api/method/<method_path>
 | `whatsapp_saudi.overrides.whtatsapp_notification.send_bevatel_file_template_message_pdf_a3` | Send a PDF/A-3 via Bevatel template |
 | `whatsapp_saudi.overrides.whtatsapp_notification.send_firebase_notification` | Send a Firebase push notification by token or topic |
 | `whatsapp_saudi.overrides.whtatsapp_notification.test_firebase_push` | Test Firebase connectivity (guest-allowed) |
+| `whatsapp_saudi.overrides.whtatsapp_notification.send_otp` | Send an OTP — via Corbit SMS if *Send OTP via Corbit SMS* is ticked, otherwise via the active WhatsApp provider |
+| `whatsapp_saudi.overrides.corbit_sms.send_sms` | Send a plain SMS via Corbit (`phone`, `message`) |
+| `whatsapp_saudi.overrides.corbit_sms.test_corbit_sms` | Send a test SMS to *To Number (for testing)* (System Manager only) |
 
 ---
 

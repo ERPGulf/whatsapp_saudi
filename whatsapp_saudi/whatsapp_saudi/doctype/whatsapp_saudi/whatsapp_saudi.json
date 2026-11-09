@@ -31,6 +31,12 @@
   "inbox_id",
   "template_name",
   "language",
+  "corbit_sms_tab",
+  "corbit_enabled",
+  "corbit_base_url",
+  "corbit_api_token",
+  "corbit_sender_name",
+  "corbit_use_for_otp",
   "fcm_tab",
   "client_token",
   "firebase_notification",
@@ -175,6 +181,48 @@
    "label": "Setting"
   },
   {
+   "fieldname": "corbit_sms_tab",
+   "fieldtype": "Tab Break",
+   "label": "Corbit SMS"
+  },
+  {
+   "default": "0",
+   "fieldname": "corbit_enabled",
+   "fieldtype": "Check",
+   "label": "Enable Corbit SMS"
+  },
+  {
+   "default": "https://api.corbit.sa",
+   "depends_on": "eval:doc.corbit_enabled",
+   "fieldname": "corbit_base_url",
+   "fieldtype": "Data",
+   "label": "Base URL",
+   "mandatory_depends_on": "eval:doc.corbit_enabled"
+  },
+  {
+   "depends_on": "eval:doc.corbit_enabled",
+   "fieldname": "corbit_api_token",
+   "fieldtype": "Password",
+   "label": "API Token",
+   "length": 500,
+   "mandatory_depends_on": "eval:doc.corbit_enabled"
+  },
+  {
+   "depends_on": "eval:doc.corbit_enabled",
+   "description": "Sender name approved for your Corbit account",
+   "fieldname": "corbit_sender_name",
+   "fieldtype": "Data",
+   "label": "Sender Name",
+   "mandatory_depends_on": "eval:doc.corbit_enabled"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.corbit_enabled",
+   "fieldname": "corbit_use_for_otp",
+   "fieldtype": "Check",
+   "label": "Send OTP via Corbit SMS"
+  },
+  {
    "fieldname": "fcm_tab",
    "fieldtype": "Tab Break",
    "label": "FCM"
@@ -265,7 +313,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-06-17 17:17:48.856062",
+ "modified": "2026-11-09 16:55:42.303750",
  "modified_by": "Administrator",
  "module": "Whatsapp Saudi",
  "name": "Whatsapp Saudi",

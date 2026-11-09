@@ -237,9 +237,14 @@ doctype_js = {
     "Notification": "public/js/whatsapp_notification.js",
     "Sales Invoice": [
         "public/js/salesinvoice.js",
-        "public/js/whatsapp_send.js"
+        "public/js/whatsapp_send.js",
+        "public/js/whatsapp_invoice_actions.js"
     ]
 
+}
+
+doctype_list_js = {
+    "Sales Invoice": "public/js/whatsapp_invoice_actions.js"
 }
 
 

@@ -410,7 +410,7 @@ def send_firebase_notification(body,client_token="",topic="",title=None):
         return frappe.response
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def test_firebase_push(
     title="Test Notification",
     body="Firebase is working successfully",
@@ -478,22 +478,12 @@ Error:
         }
 
 
-<<<<<<< HEAD
 @frappe.whitelist(allow_guest=False)
 def get_or_update_employee_token(token=None):
     try:
         user=frappe.session.user
         employee = frappe.db.get_value("Employee", {"user_id": user})
 
-=======
-
-@frappe.whitelist(allow_guest=False)
-def get_or_update_employee_token(token=None):
-    try:
-        user=frappe.session.user
-        employee = frappe.db.get_value("Employee", {"user_id": user})
-
->>>>>>> 15006e8137173d72c426eeac6cf5fb0cc88b4204
         if not employee:
             frappe.throw("Employee not found")
 

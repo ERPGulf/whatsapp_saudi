@@ -72,7 +72,7 @@ frappe.notification = {
 							: null;
 					}
 				});
-			} else if (in_list(["WhatsApp", "SMS", "Whatsapp Saudi"], frm.doc.channel)) {
+			} else if (in_list(["WhatsApp", "SMS", "Whatsapp Saudi", "Corbit SMS"], frm.doc.channel)) {
 				receiver_fields = $.map(fields, function (d) {
 					return d.options == "Phone" ? get_select_options(d) : null;
 				});
@@ -108,7 +108,7 @@ Last comment: {{ comments[-1].comment }} by {{ comments[-1].by }}
 &lt;/ul&gt;
 </pre>
 			`;
-		} else if (in_list(["Slack", "System Notification", "SMS", "Whatsapp Saudi", "Firebase Notification"], frm.doc.channel)) {
+		} else if (in_list(["Slack", "System Notification", "SMS", "Whatsapp Saudi", "Firebase Notification", "Corbit SMS"], frm.doc.channel)) {
 			template = `<h5>Message Example</h5>
 
 <pre>*Order Overdue*
@@ -191,7 +191,7 @@ frappe.ui.form.on("Notification", {
 		}
 	},
 	channel: function (frm) {
-		frm.toggle_reqd("recipients", frm.doc.channel == "Email" || frm.doc.channel == "Whatsapp Saudi");
+		frm.toggle_reqd("recipients", in_list(["Email", "Whatsapp Saudi", "Corbit SMS"], frm.doc.channel));
 		frappe.notification.setup_fieldname_select(frm);
 		frappe.notification.setup_example_message(frm);
 		if (frm.doc.channel === "SMS" && frm.doc.__islocal) {
