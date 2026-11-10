@@ -1555,7 +1555,6 @@ def send_firebase_notification(title,body,client_token="",topic=""):
         frappe.response['http_status_code'] = 500
         return frappe.response
 
-
 @frappe.whitelist()
 def test_firebase_push(
     title="Test Notification",
